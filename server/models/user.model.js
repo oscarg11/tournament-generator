@@ -1,9 +1,9 @@
 const mongoose = require('mongoose');
-const bcrypt = require('bcrypt') //encrypts and hashes our password
-const {isEmail} = require('validator')
+//const bcrypt = require('bcrypt') //encrypts and hashes our password
+//const {isEmail} = require('validator')
 
 
-const userSchema = new mongoose.Schema({
+const UserSchema = new mongoose.Schema({
     userName: {
         type: String,
         required: [true, "Username is required."],
@@ -15,8 +15,8 @@ const userSchema = new mongoose.Schema({
         required: [true, "Email is required"],
         unique: [true, "Email already exists"],
         lowercase: true,
-        trim: true,
-        validate: [ isEmail, "Please enter a valid Email"]
+        trim: true
+        //validate: [ isEmail, "Please enter a valid Email"]
     },
     password: {
         type: String,
@@ -25,5 +25,5 @@ const userSchema = new mongoose.Schema({
     },
 }, {timestamps: true});
 
-const User = mongoose.model('User', userSchema);
+const User = mongoose.model('User', UserSchema);
 module.exports = User;
