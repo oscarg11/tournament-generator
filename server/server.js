@@ -9,4 +9,8 @@ app.use( express.urlencoded({ extended: true}));
 const UserRoutes = require('./routes/user.routes')
 UserRoutes(app)
 
+//tournament routes
+const TournamentRoutes = require('./routes/tournament.routes')
+TournamentRoutes(app);
+
 app.listen( port, () => console.log(`Listening on port: ${port}`));
