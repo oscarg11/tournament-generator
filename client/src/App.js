@@ -2,6 +2,7 @@ import logo from './logo.svg';
 import axios from 'axios';
 import './App.css';
 import { useEffect } from 'react';
+import TournamentForm from './components/TournamentForm';
 
 function App() {
   useEffect(() => {
@@ -13,6 +14,7 @@ function App() {
   return (
     <div className="App">
       <h1>In the main App</h1>
+      <TournamentForm />
     </div>
   );
 }
