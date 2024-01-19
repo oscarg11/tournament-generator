@@ -8,12 +8,28 @@ const TournamentSchema = new mongoose.Schema({
     },
     format: {
         type: String,
+        required: [true, "Please select a format for your tournament."],
         enum: ['groupAndKnockout', 'knockout', 'league'],
-        default: 'groupAndKnockout',
     },
     numberOfParticipants: {
         type: Number,
         required: true
+    },
+    numberOfGroups: {
+        type: Number,
+        required: function() {
+            // Required only for the groupAndKnockout format
+            return this.format === 'groupAndKnockout';
+        },
+        min: [1, "There must be at least one group."]
+    },
+    numberOfMatches: {
+        type: Number,
+        required: function() {
+            // Required for both groupAndKnockout and league formats
+            return this.format === 'groupAndKnockout' || this.format === 'league';
+        },
+        min: [1, "There must be at least one match."]
     },
     participants: [
         {
