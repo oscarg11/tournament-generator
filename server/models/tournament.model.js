@@ -15,21 +15,9 @@ const TournamentSchema = new mongoose.Schema({
         type: Number,
         required: true
     },
-    numberOfGroups: {
+    numberOfGroupStageLegs: {
         type: Number,
-        required: function() {
-            // Required only for the groupAndKnockout format
-            return this.format === 'groupAndKnockout';
-        },
-        min: [1, "There must be at least one group."]
-    },
-    numberOfMatches: {
-        type: Number,
-        required: function() {
-            // Required for both groupAndKnockout and league formats
-            return this.format === 'groupAndKnockout' || this.format === 'league';
-        },
-        min: [1, "There must be at least one match."]
+        required: false // This field is optional and specific to a format
     },
     participants: [
         {
