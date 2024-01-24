@@ -5,30 +5,23 @@ const TournamentForm = () => {
   const [tournamentData, setTournamentData] = useState({
     tournamentName: '',
     format: '',
+    numberOfGroupStageLegs: '',
     numberOfParticipants: '',
-    participants: [{ participantName: '',teamName: '' }]
+    participants: []
   });
 
-// Additional state for the number of legs in group stage
-  const [numberOfGroupStageLegs, setNumberOfGroupStageLegs] = useState(''); 
+// Temporary state for current participant
+  const [currentParticipant, setCurrentParticipant] = useState({
+    participantName: '',
+    teamName: ''
+  });
 
 
   const onChangeHandler = (e) => {
     const { name, value } = e.target;
-    
-    if (name === 'numberOfGroupStageLegs') {
-      setNumberOfGroupStageLegs(value);
-    } else if (name === 'participantName' || name === 'teamName') {
-      // Update the last participant in the participants array
-      setTournamentData(tournamentData => {
-        const updatedParticipants = tournamentData.participants.map((participant, index, arr) => {
-          if (index === arr.length - 1) { // Check if it's the last participant
-            return { ...participant, [name]: value };
-          }
-          return participant;
-        });
-        return { ...tournamentData, participants: updatedParticipants };
-      });
+    // update current participant details
+    if (name === 'participantName' || name === 'teamName') {
+      setCurrentParticipant({ ...currentParticipant, [name]: value })
     } else {
       // For other fields, update the tournamentData directly
       setTournamentData(tournamentData => ({ ...tournamentData, [name]: value }));
@@ -37,14 +30,14 @@ const TournamentForm = () => {
 
   // Add participant
   const handleAddParticipant = () => {
-    const newParticipant = {
-      participantName: '',
-      teamName: ''
-  }
-  setTournamentData({
-    ...tournamentData,
-    participants: [...tournamentData.participants, newParticipant]
-  });
+  if (currentParticipant.participantName && currentParticipant.teamName) {
+    setTournamentData({
+      ...tournamentData,
+      participants: [...tournamentData.participants, currentParticipant]
+    });
+    // Clears the current participant
+    setCurrentParticipant({ participantName: '', teamName: '' });
+    }
   }
 
   // Delete participant
@@ -77,7 +70,7 @@ const TournamentForm = () => {
         <div className="form-group mb-3">
         { errors.tournamentName ? <p className="text-danger">{errors.tournamentName.message}</p> : "" }
           <label htmlFor="tournamentName">Tournament Name:</label>
-          <input type="text" className="form-control" id="tournamentName"
+          <input type="text" className="form-control" id="tournamentName value={tournamentData.tournamentName}"
           placeholder="Enter Tournament Name" name='tournamentName' onChange={ onChangeHandler}/>
         </div>
         {/* Format */}
@@ -107,7 +100,7 @@ const TournamentForm = () => {
               className='form-select'
               id= 'numberOfGroupStageLegs'
               name='numberOfGroupStageLegs'
-              value={ numberOfGroupStageLegs}
+              value={ tournamentData.numberOfGroupStageLegs}
               onChange={ onChangeHandler }
               >
               <option value=''>Select Number of Group Stage Legs</option>
@@ -146,24 +139,40 @@ const TournamentForm = () => {
         {/* Input fields for Participant's Name & Team Name */}
         <div className="form-group mb-3">
           <label htmlFor="participantName">Participant's Name:</label>
-          <input type="text" className="form-control" id="participantName"
-            placeholder="Enter Participant's Name" name='participantName' onChange={onChangeHandler} />
+          <input
+            type="text"
+            className="form-control"
+            id="participantName"
+            placeholder="Enter Participant's Name"
+            name='participantName' 
+            value={currentParticipant.participantName}
+            onChange={onChangeHandler} />
           <label htmlFor="teamName">Team Name:</label>
-          <input type="text" className="form-control" id="teamName"
-            placeholder="Enter Team Name" name='teamName' onChange={onChangeHandler} />
+          <input 
+            type="text" 
+            className="form-control" 
+            id="teamName"
+            placeholder="Enter Team Name"
+            name='teamName'
+            value={currentParticipant.teamName}
+            onChange={onChangeHandler} />
 
           {/* Button to add a new participant */}
-          <button type="button" onClick={handleAddParticipant}>Add New Participant</button>
+          <button type="button" className='btn btn-success mt-2' onClick={handleAddParticipant}>Add New Participant</button>
         </div>
 
         {/* Display list of participants in a scrollable box */}
-        <div style={{ maxHeight: "200px", overflowY: "scroll" }}>
-          {tournamentData.participants.map((participant, index) => (
-            <div key={index}>
-              <span>{participant.participantName} ({participant.teamName})</span>
-              <button type="button" onClick={() => handleDeleteParticipant(index)}>Delete</button>
-            </div>
-          ))}
+        <div style={{ maxHeight: "1000px", overflowY: "scroll" }}>
+          <ol>
+            {tournamentData.participants.map((participant, index) => (
+              <li key={index} style={{ marginBottom: "10px" }}>
+                {participant.participantName} ({participant.teamName})
+                <button type="button" onClick={() => handleDeleteParticipant(index)} style={{ marginLeft: "10px" }}>
+                  Delete
+                </button>
+              </li>
+            ))}
+          </ol>
         </div>
 
         <button className='btn btn-primary'>Create Tournament</button>
