@@ -6,7 +6,7 @@ const TournamentForm = () => {
     tournamentName: '',
     format: '',
     numberOfParticipants: '',
-    participants: [{ firstName: '', lastName: '', teamName: '' }]
+    participants: [{ participantName: '',teamName: '' }]
   });
 
 // Additional state for the number of legs in group stage
@@ -14,14 +14,41 @@ const TournamentForm = () => {
 
 
   const onChangeHandler = (e) => {
-    if (e.target.name === 'numberOfGroupStageLegs') {
-      setNumberOfGroupStageLegs(e.target.value);
-    } else {
-      setTournamentData({
-        ...tournamentData,
-        [e.target.name]: e.target.value
+    const { name, value } = e.target;
+    
+    if (name === 'numberOfGroupStageLegs') {
+      setNumberOfGroupStageLegs(value);
+    } else if (name === 'participantName' || name === 'teamName') {
+      // Update the last participant in the participants array
+      setTournamentData(tournamentData => {
+        const updatedParticipants = tournamentData.participants.map((participant, index, arr) => {
+          if (index === arr.length - 1) { // Check if it's the last participant
+            return { ...participant, [name]: value };
+          }
+          return participant;
+        });
+        return { ...tournamentData, participants: updatedParticipants };
       });
+    } else {
+      // For other fields, update the tournamentData directly
+      setTournamentData(tournamentData => ({ ...tournamentData, [name]: value }));
     }
+  };
+
+  // Add participant
+  const handleAddParticipant = () => {
+    const newParticipant = {
+      participantName: tournamentData.participantName,
+      teamName: tournamentData.teamName,
+  }
+  }
+
+  // Delete participant
+  const handleDeleteParticipant = index => {
+    setTournamentData({
+      ...tournamentData,
+      participants: tournamentData.participants.filter((_, i) => i !== index)
+    });
   };
 
 
@@ -88,7 +115,6 @@ const TournamentForm = () => {
           </div>
         )}
 
-
         {/* Number of Participants */}
         <div className="form-group mb-3">
           { errors.numberOfParticipants ? <p className="text-danger">{errors.numberOfParticipants.message}</p> : "" }
@@ -112,6 +138,40 @@ const TournamentForm = () => {
             <option value="64">64</option>
           </select>
         </div>
+
+        {/* Participant's Name & Team Name */}
+          <div className="form-group mb-3">
+            <label htmlFor="participantName">Participant's Name:</label>
+            <input type="text" className="form-control" id="participantName"
+            placeholder="Enter Participant's Name" name='participantName' onChange={ onChangeHandler}/>
+            <label htmlFor="teamName">Team Name:</label>
+            <input type="text" className="form-control" id="teamName"
+            placeholder="Enter Team Name" name='teamName' onChange={ onChangeHandler}/>
+
+             {/* Button to add a new participant */}
+        <button type="button" onClick={handleAddParticipant}>Add New Participant</button>
+
+        {/* Display list of participants */}
+        {tournamentData.participants.map((participant, index) => (
+          <div key={index} className="participant-entry">
+            <input
+              type="text"
+              placeholder="Participant's Name"
+              value={participant.participantName}
+              onChange={e => onChangeHandler(e, index)}
+              name="participantName"
+            />
+            <input
+              type="text"
+              placeholder="Team Name"
+              value={participant.teamName}
+              onChange={e => onChangeHandler(e, index)}
+              name="teamName"
+            />
+            <button type="button" onClick={() => handleDeleteParticipant(index)}>Delete</button>
+          </div>
+        ))}
+          </div>
 
         <button className='btn btn-primary'>Create Tournament</button>
       </form>
