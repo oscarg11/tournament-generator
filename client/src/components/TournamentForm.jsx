@@ -38,9 +38,13 @@ const TournamentForm = () => {
   // Add participant
   const handleAddParticipant = () => {
     const newParticipant = {
-      participantName: tournamentData.participantName,
-      teamName: tournamentData.teamName,
+      participantName: '',
+      teamName: ''
   }
+  setTournamentData({
+    ...tournamentData,
+    participants: [...tournamentData.participants, newParticipant]
+  });
   }
 
   // Delete participant
@@ -139,39 +143,28 @@ const TournamentForm = () => {
           </select>
         </div>
 
-        {/* Participant's Name & Team Name */}
-          <div className="form-group mb-3">
-            <label htmlFor="participantName">Participant's Name:</label>
-            <input type="text" className="form-control" id="participantName"
-            placeholder="Enter Participant's Name" name='participantName' onChange={ onChangeHandler}/>
-            <label htmlFor="teamName">Team Name:</label>
-            <input type="text" className="form-control" id="teamName"
-            placeholder="Enter Team Name" name='teamName' onChange={ onChangeHandler}/>
+        {/* Input fields for Participant's Name & Team Name */}
+        <div className="form-group mb-3">
+          <label htmlFor="participantName">Participant's Name:</label>
+          <input type="text" className="form-control" id="participantName"
+            placeholder="Enter Participant's Name" name='participantName' onChange={onChangeHandler} />
+          <label htmlFor="teamName">Team Name:</label>
+          <input type="text" className="form-control" id="teamName"
+            placeholder="Enter Team Name" name='teamName' onChange={onChangeHandler} />
 
-             {/* Button to add a new participant */}
-        <button type="button" onClick={handleAddParticipant}>Add New Participant</button>
+          {/* Button to add a new participant */}
+          <button type="button" onClick={handleAddParticipant}>Add New Participant</button>
+        </div>
 
-        {/* Display list of participants */}
-        {tournamentData.participants.map((participant, index) => (
-          <div key={index} className="participant-entry">
-            <input
-              type="text"
-              placeholder="Participant's Name"
-              value={participant.participantName}
-              onChange={e => onChangeHandler(e, index)}
-              name="participantName"
-            />
-            <input
-              type="text"
-              placeholder="Team Name"
-              value={participant.teamName}
-              onChange={e => onChangeHandler(e, index)}
-              name="teamName"
-            />
-            <button type="button" onClick={() => handleDeleteParticipant(index)}>Delete</button>
-          </div>
-        ))}
-          </div>
+        {/* Display list of participants in a scrollable box */}
+        <div style={{ maxHeight: "200px", overflowY: "scroll" }}>
+          {tournamentData.participants.map((participant, index) => (
+            <div key={index}>
+              <span>{participant.participantName} ({participant.teamName})</span>
+              <button type="button" onClick={() => handleDeleteParticipant(index)}>Delete</button>
+            </div>
+          ))}
+        </div>
 
         <button className='btn btn-primary'>Create Tournament</button>
       </form>
