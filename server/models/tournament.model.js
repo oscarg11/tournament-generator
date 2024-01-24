@@ -21,15 +21,10 @@ const TournamentSchema = new mongoose.Schema({
     },
     participants: [
         {
-            firstName: {
+            participantName: {
                 type: String,
-                required: [true, "First name is required"],
+                required: [true, "A name is required"],
                 minlength: [2, "First name must be at least 2 characters"]
-            },
-            lastName: {
-                type: String,
-                required: [true, "Last name is required"],
-                minlength: [2, "Last Name must be at least 2 characters"]
             },
             teamName: {
                 type: String,
