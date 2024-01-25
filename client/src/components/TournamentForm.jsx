@@ -163,18 +163,25 @@ const TournamentForm = () => {
 
         {/* Display list of participants in a scrollable box */}
         <div style={{ maxHeight: "1000px", overflowY: "scroll" }}>
-          <ol>
-            {tournamentData.participants.map((participant, index) => (
-              <li key={index} style={{ marginBottom: "10px" }}>
-                {participant.participantName} ({participant.teamName})
-                <button type="button" onClick={() => handleDeleteParticipant(index)} style={{ marginLeft: "10px" }}>
-                  Delete
-                </button>
+          <h3>Participants to Add:</h3>
+          <ol  style={{ listStylePosition: 'inside' }}>
+            {/* Create an array with a length equal to the selected number of participants */}
+            {Array.from({ length: tournamentData.numberOfParticipants }, (_, i) => (
+              <li key={i} style={{ marginBottom: '10px',color: tournamentData.participants[i] ? 'black' : '#999' }}>
+                {/* Check if a participant exists at this index */}
+                {tournamentData.participants[i] ? 
+                 // If a participant exists, display their name and team name
+                  `${i + 1}. ${tournamentData.participants[i].participantName} (${tournamentData.participants[i].teamName})` 
+                  :"Participant Name"}
+                {tournamentData.participants[i] && (
+                  <button type="button" onClick={() => handleDeleteParticipant(i)} style={{ marginLeft: "10px" }}>
+                    Delete
+                  </button>
+                )}
               </li>
             ))}
           </ol>
-        </div>
-
+</div>
         <button className='btn btn-primary'>Create Tournament</button>
       </form>
     </div>
