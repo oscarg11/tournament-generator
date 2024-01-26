@@ -15,7 +15,9 @@ const TournamentForm = () => {
     participantName: '',
     teamName: ''
   });
-
+  
+  // errors
+  const [errors, setErrors] = useState({});
 
   const onChangeHandler = (e) => {
     const { name, value } = e.target;
@@ -54,13 +56,32 @@ const TournamentForm = () => {
     axios.post('http://localhost:8000/api/tournaments', tournamentData)
       .then(res => console.log(res, 'New Tournament created successfully!'))
       .catch((err) => {
-        console.log('Error detected', err.response.data.errors);
-        setErrors(err.response.data.errors);
+        if (err.response && err.response.data) {
+          console.log('Error Response:', err.response.data);
+  
+          // Check if the expected errors object exists
+          if (err.response.data.errors) {
+            console.log('Validation Errors:', err.response.data.errors);
+            setErrors(err.response.data.errors);
+          } else {
+            // Handle cases where the error format is different
+            console.log('An unexpected error occurred:', err.response.data);
+            // Optionally, set a general error message
+            setErrors({ general: 'An unexpected error occurred.' });
+          }
+        } else {
+          // Handle cases where err.response is undefined
+          console.log('Network or other error:', err);
+          // Optionally, set a general network error message
+          setErrors({ general: 'A network or unknown error occurred.' });
+        }
       });
+      // .catch((err) => {
+      //   console.log('BAD INPUT!!', err.response.data.errors);
+      //   setErrors(err.response.data.errors);
+      // });
   };
 
-  // errors
-  const [errors, setErrors] = useState({});
 
   return (
     <div>
@@ -138,6 +159,7 @@ const TournamentForm = () => {
 
         {/* Input fields for Participant's Name & Team Name */}
         <div className="form-group mb-3">
+          { errors.participantName ? <p className="text-danger">{errors.participantName.message}</p> : "" }
           <label htmlFor="participantName">Participant's Name:</label>
           <input
             type="text"
@@ -147,16 +169,18 @@ const TournamentForm = () => {
             name='participantName' 
             value={currentParticipant.participantName}
             onChange={onChangeHandler} />
-          <label htmlFor="teamName">Team Name:</label>
-          <input 
-            type="text" 
-            className="form-control" 
-            id="teamName"
-            placeholder="Enter Team Name"
-            name='teamName'
-            value={currentParticipant.teamName}
-            onChange={onChangeHandler} />
-
+          <div>
+            { errors.teamName ? <p className="text-danger">{errors.teamName.message}</p> : "" }
+            <label htmlFor="teamName">Team Name:</label>
+            <input 
+              type="text" 
+              className="form-control" 
+              id="teamName"
+              placeholder="Enter Team Name"
+              name='teamName'
+              value={currentParticipant.teamName}
+              onChange={onChangeHandler} />
+          </div>
           {/* Button to add a new participant */}
           <button type="button" className='btn btn-success mt-2' onClick={handleAddParticipant}>Add New Participant</button>
         </div>
@@ -171,7 +195,8 @@ const TournamentForm = () => {
                 {/* Check if a participant exists at this index */}
                 {tournamentData.participants[i] ? 
                  // If a participant exists, display their name and team name
-                  `${i + 1}. ${tournamentData.participants[i].participantName} (${tournamentData.participants[i].teamName})` 
+                  `${tournamentData.participants[i].participantName} (${tournamentData.participants[i].teamName})`
+                  // If a participant does not exist, display a placeholder 
                   :"Participant Name"}
                 {tournamentData.participants[i] && (
                   <button type="button" onClick={() => handleDeleteParticipant(i)} style={{ marginLeft: "10px" }}>
