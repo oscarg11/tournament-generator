@@ -13,7 +13,7 @@ const TournamentSchema = new mongoose.Schema({
     },
     numberOfParticipants: {
         type: Number,
-        required: true
+        required: [true, "Please select the number of participants."],
     },
     numberOfGroupStageLegs: {
         type: Number,
