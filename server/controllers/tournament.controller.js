@@ -18,12 +18,12 @@ module.exports.findOneTournament = (req,res) => {
 module.exports.createTournament = (req, res) => {
     Tournament.create(req.body)
         .then(newTournament => {
-            console.log("New tournament created successfully!");
+            console.log("NEW TOURNAMENT CREATED SUCCESSFULLY!");
             res.json({ tournament: newTournament });
         })
         .catch(err => {
             console.error('Error:', err);
-            res.status(500).json({ message: "Something went wrong", error: err });
+            res.status(500).json({ message: "Something went wrong IN CREATE_TOURNAMENT", error: err });
         });
 }
 
