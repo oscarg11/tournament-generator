@@ -57,7 +57,7 @@ const TournamentForm = () => {
       .then(res => console.log(res, 'New Tournament created successfully!'))
       .catch(err => {
         if (err.response && err.response.data && err.response.data.error && err.response.data.error.errors) {
-            //If there are Mongoose validation errors
+            
             console.error('Validation Errors:', err.response.data.error.errors);
             setErrors(err.response.data.error.errors);
         } else {
