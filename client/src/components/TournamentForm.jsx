@@ -55,32 +55,18 @@ const TournamentForm = () => {
     e.preventDefault()
     axios.post('http://localhost:8000/api/tournaments', tournamentData)
       .then(res => console.log(res, 'New Tournament created successfully!'))
-      .catch((err) => {
-        if (err.response && err.response.data) {
-          console.log('Error Response:', err.response.data);
-  
-          // Check if the expected errors object exists
-          if (err.response.data.errors) {
-            console.log('Validation Errors:', err.response.data.errors);
-            setErrors(err.response.data.errors);
-          } else {
-            // Handle cases where the error format is different
-            console.log('An unexpected error occurred:', err.response.data);
-            // Optionally, set a general error message
-            setErrors({ general: 'An unexpected error occurred.' });
-          }
+      .catch(err => {
+        if (err.response && err.response.data && err.response.data.error && err.response.data.error.errors) {
+            //If there are Mongoose validation errors
+            console.error('Validation Errors:', err.response.data.error.errors);
+            setErrors(err.response.data.error.errors);
         } else {
-          // Handle cases where err.response is undefined
-          console.log('Network or other error:', err);
-          // Optionally, set a general network error message
-          setErrors({ general: 'A network or unknown error occurred.' });
+            //General error handling
+            console.error('Submission error:', err);
+            setErrors({ general: 'An error occurred. Please try again.' });
         }
-      });
-      // .catch((err) => {
-      //   console.log('BAD INPUT!!', err.response.data.errors);
-      //   setErrors(err.response.data.errors);
-      // });
-  };
+    });
+};
 
 
   return (
