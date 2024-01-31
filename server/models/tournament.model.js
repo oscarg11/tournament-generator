@@ -19,7 +19,7 @@ const TournamentSchema = new mongoose.Schema({
         type: Number,
         required: [function() { //only required if format is groupAndKnockout
             return this.format === 'groupAndKnockout';
-        }, "Number of Group Stage Legs is required for Group and Knockout format"],
+        }, "Please select the number of group stage legs."],
     },
     participants: [
         {
