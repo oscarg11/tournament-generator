@@ -57,7 +57,7 @@ const TournamentForm = () => {
       .then(res => console.log(res, 'New Tournament created successfully!'))
       .catch(err => {
         if (err.response && err.response.data && err.response.data.error && err.response.data.error.errors) {
-            
+            //Validation error handling
             console.error('Validation Errors:', err.response.data.error.errors);
             setErrors(err.response.data.error.errors);
         } else {
@@ -101,7 +101,7 @@ const TournamentForm = () => {
         {/*  Conditional input for number of group stage legs */}
         { tournamentData.format === 'groupAndKnockout' && (
           <div className='form-group mb-3'>
-            { errors.numberOfGroups ? <p className="text-danger">{errors.numberOfGroups.message}</p> : "" }
+            { errors.numberOfGroupStageLegs ? <p className="text-danger">{errors.numberOfGroupStageLegs.message}</p> : "" }
             <label htmlFor="numberOfGroupStageLegs">Number of Group Stage Legs:</label>
             <select
               className='form-select'
