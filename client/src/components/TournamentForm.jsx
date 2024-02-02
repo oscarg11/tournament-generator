@@ -80,6 +80,7 @@ const TournamentForm = () => {
           <input type="text" className="form-control" id="tournamentName value={tournamentData.tournamentName}"
           placeholder="Enter Tournament Name" name='tournamentName' onChange={ onChangeHandler}/>
         </div>
+
         {/* Format */}
         <div className="form-group mb-3 dropdown">
           { errors.format ? <p className="text-danger">{errors.format.message}</p> : "" }
