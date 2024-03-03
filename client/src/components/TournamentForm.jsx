@@ -10,6 +10,7 @@ const TournamentForm = () => {
     participants: []
   });
 
+
 // Temporary state for current participant
   const [currentParticipant, setCurrentParticipant] = useState({
     participantName: '',
@@ -18,6 +19,7 @@ const TournamentForm = () => {
   
   // errors
   const [errors, setErrors] = useState({});
+
 
   const onChangeHandler = (e) => {
     const { name, value } = e.target;
@@ -30,17 +32,31 @@ const TournamentForm = () => {
     }
   };
 
-  // Add participant
+
+  // Add participant & validation
   const handleAddParticipant = () => {
-  if (currentParticipant.participantName && currentParticipant.teamName) {
-    setTournamentData({
-      ...tournamentData,
-      participants: [...tournamentData.participants, currentParticipant]
-    });
-    // Clears the current participant
-    setCurrentParticipant({ participantName: '', teamName: '' });
+    let localErrors = {};
+    if (!currentParticipant.participantName || currentParticipant.length < 2) {
+      localErrors.participantName = { message: "A name is required and must be at least 2 characters." };
     }
-  }
+    if (!currentParticipant.teamName || currentParticipant.teamName.length < 2) {
+      localErrors.teamName = { message: "Team name is required and must be at least 2 characters." };
+    }
+    //If there are errors, set them and return
+    if (Object.keys(localErrors).length > 0) {
+      setErrors(localErrors);
+      return;
+    }
+    // If no errors, add the participant to the list
+      setTournamentData({
+        ...tournamentData,
+        participants: [...tournamentData.participants, currentParticipant]
+      });
+      // Clears the current participant
+      setCurrentParticipant({ participantName: '', teamName: '' });
+      setErrors({}); // Clear any errors
+    };
+  
 
   // Delete participant
   const handleDeleteParticipant = index => {
@@ -193,7 +209,7 @@ const TournamentForm = () => {
               </li>
             ))}
           </ol>
-</div>
+        </div>
         <button className='btn btn-primary'>Create Tournament</button>
       </form>
     </div>
