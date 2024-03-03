@@ -70,7 +70,18 @@ const TournamentForm = () => {
   const handleSubmit = (e) => {
     e.preventDefault()
     axios.post('http://localhost:8000/api/tournaments', tournamentData)
-      .then(res => console.log(res, 'New Tournament created successfully!'))
+      .then(res => {
+        console.log(res, 'New Tournament created successfully!');
+        //reset form upon successful submission
+        setTournamentData({
+          tournamentName: '',
+          format: '',
+          numberOfGroupStageLegs: '',
+          numberOfParticipants: '',
+          participants: []
+        });
+        setErrors({});
+      })
       .catch(err => {
         if (err.response && err.response.data && err.response.data.error && err.response.data.error.errors) {
             //Validation error handling
@@ -93,7 +104,7 @@ const TournamentForm = () => {
         <div className="form-group mb-3">
         { errors.tournamentName ? <p className="text-danger">{errors.tournamentName.message}</p> : "" }
           <label htmlFor="tournamentName">Tournament Name:</label>
-          <input type="text" className="form-control" id="tournamentName value={tournamentData.tournamentName}"
+          <input type="text" className="form-control" id="tournamentName" value={tournamentData.tournamentName}
           placeholder="Enter Tournament Name" name='tournamentName' onChange={ onChangeHandler}/>
         </div>
 
