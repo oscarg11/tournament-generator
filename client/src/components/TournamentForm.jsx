@@ -17,7 +17,7 @@ const TournamentForm = () => {
     teamName: ''
   });
   
-  // errors
+  // errors state
   const [errors, setErrors] = useState({});
 
 
@@ -69,6 +69,14 @@ const TournamentForm = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault()
+    // Validate that all participants are complete
+    if(tournamentData.participants.length < parseInt(tournamentData.numberOfParticipants)){
+      setErrors(prevErrors => ({
+        ...prevErrors,
+        incommpleteParticipants: 'Please complete all participants'
+      }))
+      return;
+    }
     axios.post('http://localhost:8000/api/tournaments', tournamentData)
       .then(res => {
         console.log(res, 'New Tournament created successfully!');
@@ -201,7 +209,10 @@ const TournamentForm = () => {
 
         {/* Display list of participants in a scrollable box */}
         <div style={{ maxHeight: "1000px", overflowY: "scroll" }}>
+          {}
           <h3>Participants to Add:</h3>
+          {/* Incomplete participants validtation message */}
+          {errors.incommpleteParticipants && <p className="text-danger">{errors.incommpleteParticipants}</p>}
           <ol  style={{ listStylePosition: 'inside' }}>
             {/* Create an array with a length equal to the selected number of participants */}
             {Array.from({ length: tournamentData.numberOfParticipants }, (_, i) => (
