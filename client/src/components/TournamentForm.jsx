@@ -36,7 +36,7 @@ const TournamentForm = () => {
   // Add participant & validation
   const handleAddParticipant = () => {
     let localErrors = {};
-    if (!currentParticipant.participantName || currentParticipant.length < 2) {
+    if (!currentParticipant.participantName || currentParticipant.participantName.length < 2) {
       localErrors.participantName = { message: "A name is required and must be at least 2 characters." };
     }
     if (!currentParticipant.teamName || currentParticipant.teamName.length < 2) {
