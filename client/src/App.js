@@ -1,4 +1,5 @@
 import logo from './logo.svg';
+import { BrowserRouter, Routes, Route} from 'react-router-dom'
 import axios from 'axios';
 import './App.css';
 import { useEffect } from 'react';
@@ -13,8 +14,11 @@ function App() {
 
   return (
     <div className="App">
-      <h1>In the main App</h1>
-      <TournamentForm />
+      <BrowserRouter>
+        <Routes>
+          <Route path='/createTournament' element={<TournamentForm/>} />
+        </Routes>
+      </BrowserRouter>
     </div>
   );
 }

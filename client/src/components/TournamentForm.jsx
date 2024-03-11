@@ -27,7 +27,6 @@ const TournamentForm = () => {
     if (name === 'participantName' || name === 'teamName') {
       setCurrentParticipant({ ...currentParticipant, [name]: value })
     } else {
-      // For other fields, update the tournamentData directly
       setTournamentData(tournamentData => ({ ...tournamentData, [name]: value }));
     }
   };
@@ -47,7 +46,6 @@ const TournamentForm = () => {
       setErrors(localErrors);
       return;
     }
-    // If no errors, add the participant to the list
       setTournamentData({
         ...tournamentData,
         participants: [...tournamentData.participants, currentParticipant]
@@ -105,7 +103,7 @@ const TournamentForm = () => {
 
 
   return (
-    <div className='container'>
+    <div className='container py-5'>
       <h1>Create your Tournament!</h1>
       <form action="" className="row" onSubmit={ handleSubmit }>
         {/* Tournament Name */}
@@ -182,7 +180,7 @@ const TournamentForm = () => {
         </div>
         
         <div className="col-md-4">
-            {/* Input fields for Participant's Name & Team Name */}
+            {/* Participant's Name */}
           <div className="form-group mb-3">
             { errors.participantName ? <p className="text-danger">{errors.participantName.message}</p> : "" }
             <label htmlFor="participantName">Participant's Name:</label>
@@ -195,6 +193,7 @@ const TournamentForm = () => {
               value={currentParticipant.participantName}
               onChange={onChangeHandler} />
             <div>
+              {/* Team Name */}
               { errors.teamName ? <p className="text-danger">{errors.teamName.message}</p> : "" }
               <label htmlFor="teamName">Team Name:</label>
               <input 
@@ -217,17 +216,14 @@ const TournamentForm = () => {
             {/* Incomplete participants validtation message */}
             {errors.incommpleteParticipants && <p className="text-danger">{errors.incommpleteParticipants}</p>}
             <ol  style={{ listStylePosition: 'inside' }}>
-              {/* Create an array with a length equal to the selected number of participants */}
               {Array.from({ length: tournamentData.numberOfParticipants }, (_, i) => (
                 <li key={i} style={{ marginBottom: '10px',color: tournamentData.participants[i] ? 'black' : '#999' }}>
-                  {/* Check if a participant exists at this index */}
                   {tournamentData.participants[i] ? 
                   // If a participant exists, display their name and team name
                     `${tournamentData.participants[i].participantName} (${tournamentData.participants[i].teamName})`
-                    // If a participant does not exist, display a placeholder 
                     :"Participant Name"}
                   {tournamentData.participants[i] && (
-                    <button type="button" onClick={() => handleDeleteParticipant(i)} style={{ marginLeft: "10px" }}>
+                    <button className='btn btn-danger' onClick={() => handleDeleteParticipant(i)} style={{ marginLeft: "10px" }}>
                       Delete
                     </button>
                   )}
