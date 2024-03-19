@@ -1,4 +1,3 @@
-import logo from './logo.svg';
 import { BrowserRouter, Routes, Route} from 'react-router-dom'
 import axios from 'axios';
 import './App.css';
@@ -16,7 +15,7 @@ function App() {
     <div className="App">
       <BrowserRouter>
         <Routes>
-          <Route path='/createTournament' element={<TournamentForm/>} />
+          <Route path='/' element={<TournamentForm/>} />
         </Routes>
       </BrowserRouter>
     </div>
