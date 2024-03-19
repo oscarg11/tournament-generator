@@ -75,7 +75,7 @@ const TournamentForm = () => {
       }))
       return;
     }
-    axios.post('http://localhost:8000/api/tournaments', tournamentData)
+    axios.post('http://localhost:8000/api/tournaments/create', tournamentData)
       .then(res => {
         console.log(res, 'New Tournament created successfully!');
         //reset form upon successful submission
