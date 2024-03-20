@@ -3,6 +3,7 @@ import axios from 'axios';
 import './App.css';
 import { useEffect } from 'react';
 import TournamentForm from './components/TournamentForm';
+import GroupStage from './components/GroupStage';
 
 function App() {
   useEffect(() => {
@@ -16,6 +17,7 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path='/' element={<TournamentForm/>} />
+          <Route path='/group-stage/:tournamentId' element={<GroupStage/>}/>
         </Routes>
       </BrowserRouter>
     </div>
