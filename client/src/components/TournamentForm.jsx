@@ -1,4 +1,5 @@
-import React, {useState} from 'react'
+import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios'
 
 const TournamentForm = () => {
@@ -9,6 +10,8 @@ const TournamentForm = () => {
     numberOfParticipants: '',
     participants: []
   });
+
+  const navigate = useNavigate();
 
 
 // Temporary state for current participant
@@ -86,6 +89,8 @@ const TournamentForm = () => {
           numberOfParticipants: '',
           participants: []
         });
+        const tournamentId = res.data._id;
+        navigate(`/group-stage/${tournamentId}`);
         setErrors({});
       })
       .catch(err => {
