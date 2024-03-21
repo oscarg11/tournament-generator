@@ -4,15 +4,17 @@ import axios from 'axios'
 
 const GroupStage = () => {
   const { tournamentId } = useParams();
+  console.log(tournamentId, "Tournament ID")
   const [tournamentData, setTournamentData] = useState({
     participants: []
   });
 
   useEffect(() => {
+    console.log(`Fetching data for tournament ID: ${tournamentId}`);
     axios.get(`http://localhost:8000/api/tournament/group-stage/${tournamentId}`)
     .then(res =>{ 
-      console.log(res.data)
-      setTournamentData(res.data)
+      console.log(res.data, "Tournament data")
+      setTournamentData(res.data.oneTournament)
     })
     .catch(err => console.log("Failed to fetch tournament data", err));
   }, [tournamentId]);
@@ -25,7 +27,7 @@ const GroupStage = () => {
 
       <h2>Participants</h2>
       <ul>
-        {tournamentData.participants.map((participant, index) => ( 
+        {tournamentData.participants && tournamentData.participants.map((participant, index) => ( 
           <li key={index}>{participant.participantName} - {participant.teamName}</li>
         ))}
       </ul>
