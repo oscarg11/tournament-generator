@@ -9,8 +9,8 @@ module.exports.findAllTournaments = (req, res) => {
 
 //find one tournament
 module.exports.findOneTournament = (req,res) => {
-    Tournament.findById(req.params.id)
-        .then(oneTournament => res.json({ tournament: oneTournament}))
+    Tournament.findById(req.params._id)
+        .then(oneTournament => res.json({ oneTournament: oneTournament}))
         .catch(err => res.json({ message: "Something went wrong", error:err}));
 }
 
