@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import LandingPage from './components/LandingPage';
 import TournamentForm from './components/TournamentForm';
 import GroupStage from './components/GroupStage';
+import Dashboard from './components/Dashboard';
 
 function App() {
   useEffect(() => {
@@ -17,9 +18,10 @@ function App() {
     <div className="App">
       <BrowserRouter>
         <Routes>
-          <Route path='/' element={<LandingPage/>} />
-          <Route path='/create-tournament' element={<TournamentForm/>} />
-          <Route path='/group-stage/:tournamentId' element={<GroupStage/>}/>
+          <Route path='/' element={ <LandingPage/> } />
+          <Route path='/create-tournament' element={ <TournamentForm/> } />
+          <Route path='/dashboard' element= { <Dashboard/> }/>
+          <Route path='/group-stage/:tournamentId' element={ <GroupStage/> }/>
         </Routes>
       </BrowserRouter>
     </div>
