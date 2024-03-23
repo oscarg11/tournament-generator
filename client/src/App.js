@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route} from 'react-router-dom'
 import axios from 'axios';
 import './App.css';
 import { useEffect } from 'react';
+import NavBar from './components/NavBar';
 import LandingPage from './components/LandingPage';
 import TournamentForm from './components/TournamentForm';
 import GroupStage from './components/GroupStage';
