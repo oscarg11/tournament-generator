@@ -1,6 +1,7 @@
 import React, { useState, useEffect} from 'react'
 import { Link } from 'react-router-dom'
 import axios from 'axios'
+import NavBar from '../components/NavBar';
 
 
 const Dashboard = () => {
@@ -17,6 +18,7 @@ const Dashboard = () => {
 
   return (
     <div>
+        <NavBar />
         <h1>Your Tournaments</h1>
         <ul>
             {tournamentData.map(tournament => (

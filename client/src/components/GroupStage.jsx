@@ -1,6 +1,7 @@
 import React, {useState, useEffect} from 'react'
 import {useParams} from 'react-router-dom'
 import axios from 'axios'
+import NavBar from './NavBar'
 
 const GroupStage = () => {
   const { tournamentId } = useParams();
@@ -21,6 +22,7 @@ const GroupStage = () => {
 
   return (
     <div>
+      <NavBar />
       <h1>{tournamentData.tournamentName}</h1>
       <p>Format: {tournamentData.format}</p>
       {tournamentData.format === 'groupAndKnockout' && <p>Number of group stage legs: {tournamentData.numberOfGroupStageLegs}</p>}
