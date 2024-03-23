@@ -78,7 +78,7 @@ const TournamentForm = () => {
       }))
       return;
     }
-    axios.post('http://localhost:8000/api/tournaments/create', tournamentData)
+    axios.post('http://localhost:8000/api/tournaments/create-tournament', tournamentData)
       .then(res => {
         console.log(res, 'New Tournament created successfully!');
         //reset form upon successful submission
@@ -89,8 +89,9 @@ const TournamentForm = () => {
           numberOfParticipants: '',
           participants: []
         });
-        const tournamentId = res.data._id;
-        navigate(`/group-stage/${tournamentId}`);
+       // const tournamentId = res.data._id;
+       // navigate(`/group-stage/${tournamentId}`);
+      navigate('/dashboard');
         setErrors({});
       })
       .catch(err => {
