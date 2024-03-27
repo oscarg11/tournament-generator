@@ -3,7 +3,7 @@ import {useParams} from 'react-router-dom'
 import axios from 'axios'
 import NavBar from './NavBar'
 
-const GroupStage = () => {
+const TournamentHub = () => {
   const { tournamentId } = useParams();
   console.log(tournamentId, "Tournament ID")
   const [tournamentData, setTournamentData] = useState({
@@ -12,7 +12,7 @@ const GroupStage = () => {
 
   useEffect(() => {
     console.log(`Fetching data for tournament ID: ${tournamentId}`);
-    axios.get(`http://localhost:8000/api/tournament/group-stage/${tournamentId}`)
+    axios.get(`http://localhost:8000/api/tournament-hub/${tournamentId}`)
     .then(res =>{ 
       console.log(res.data, "Tournament data")
       setTournamentData(res.data.oneTournament)
@@ -37,4 +37,4 @@ const GroupStage = () => {
   )
 }
 
-export default GroupStage
+export default TournamentHub
