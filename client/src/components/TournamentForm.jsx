@@ -110,7 +110,7 @@ const TournamentForm = () => {
 
 
   return (
-    <div>
+    <div className='container-fluid'>
       <NavBar />
       <div className='container py-5'>
         <h1>Create your Tournament!</h1>
