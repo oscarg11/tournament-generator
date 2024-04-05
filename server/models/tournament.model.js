@@ -1,20 +1,22 @@
 const mongoose = require('mongoose');
 
-const MatchSchema = new mongooose.Schema({
-    participants: [
-        {
-            participantName: String,
-            teamName: String,
-            score: Number,
-        },
-        {
-            participantName: String,
-            teamName: String,
-            score: Number,
-        }
-    ],
-    matchNumber: Number,
-    group: String,
+const ParticipantsStatsSchema = new mongoose.Schema({
+    goalsScored: {type: Number, defualt: 0},
+    goalsAgainst: {type: Number, defuault: 0}
+})
+
+const MatchSchema = new mongoose.Schema({
+    participants: [{
+        participantName: {type: String, required: true},
+        teamName: {type: String, required: true},
+        stats: ParticipantsStatsSchema,
+    }],
+    matchNumber : {type: Number, required: true },
+    group: { type: String, required: true },
+    score: {
+        participant1: {type: Number, defualt: 0 },
+        participant2: {type: Number, defualt: 0 }
+    },
 });
 
 const TournamentSchema = new mongoose.Schema({
@@ -51,8 +53,11 @@ const TournamentSchema = new mongoose.Schema({
                 minlength: [2, "Team Name must be at least 2 characters"]
                 }
         }
-    ]
+    ],
+    matches: [MatchSchema],
+    
 }, {timestamps: true});
+
 
 const Tournament = mongoose.model('Tournament', TournamentSchema);
 module.exports = Tournament
