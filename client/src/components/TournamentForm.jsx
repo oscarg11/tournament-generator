@@ -78,6 +78,12 @@ const TournamentForm = () => {
         incommpleteParticipants: 'Please complete all participants'
       }))
       return;
+    }else if(tournamentData.participants.length > parseInt(tournamentData.numberOfParticipants)){
+      setErrors(prevErrors => ({
+        ...prevErrors,
+        incommpleteParticipants: 'Too many participants'
+      }))
+      return;
     }
     axios.post('http://localhost:8000/api/tournaments/create-tournament', tournamentData)
       .then(res => {
