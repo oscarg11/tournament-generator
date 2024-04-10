@@ -231,7 +231,18 @@ const TournamentForm = () => {
               {/* Incomplete participants validtation message */}
               {errors.incommpleteParticipants && <p className="text-danger">{errors.incommpleteParticipants}</p>}
               <ol  style={{ listStylePosition: 'inside' }}>
-                {Array.from({ length: tournamentData.numberOfParticipants }, (_, i) => (
+
+              {tournamentData.participants.map((participant, index) => (
+              <li key={index} style={{ marginBottom: '10px', color: 'black' }}>
+                {/* Display the participant's name and team name */}
+                {`${participant.participantName} (${participant.teamName})`}
+                {/* Delete button for each participant */}
+                <button className='btn btn-danger' onClick={() => handleDeleteParticipant(index)} style={{ marginLeft: "10px" }}>
+                  Delete
+                </button>
+              </li>
+              ))}
+                {/* {Array.from({ length: tournamentData.numberOfParticipants }, (_, i) => (
                   <li key={i} style={{ marginBottom: '10px',color: tournamentData.participants[i] ? 'black' : '#999' }}>
                     {tournamentData.participants[i] ? 
                     // If a participant exists, display their name and team name
@@ -243,7 +254,7 @@ const TournamentForm = () => {
                       </button>
                     )}
                   </li>
-                ))}
+                ))} */}
               </ol>
             </div>
           </div>
