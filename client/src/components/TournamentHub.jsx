@@ -59,28 +59,44 @@ const TournamentHub = () => {
       <h1>{tournamentData.tournamentName}</h1>
       <p>Format: {tournamentData.format}</p>
       {tournamentData.format === 'groupAndKnockout' && <p>Number of group stage legs: {tournamentData.numberOfGroupStageLegs}</p>}
-
-      <h2>Groups</h2>
-      { tournamentData.groups.map((group, groupIndex) => (
-        <div key={groupIndex}>
-          <h3>Group {String.fromCharCode(65 + groupIndex)}</h3>
-          <ul>
-            {group.map((participant, index) => (
-              <li key={index}>{participant.participantName} - {participant.teamName}</li>
-            ))}
-          </ul>
-    </div>
-    ))}
-      {tournamentData.format === 'knockout' && (
-      <>
-      <h2>Participants</h2>
-      <ul>
-        {tournamentData.participants.map((participant, index) => (
-          <li key={index}>{participant.participantName} - {participant.teamName}</li>
-        ))}
-      </ul>
-    </>
-  )}
+      <div className='table-wrapper'>
+        <h2>Groups</h2>
+          <table className='table'>
+            <thead className='table-active'>
+              <tr>
+                  <th scope='"col'> </th>
+                  <th scope='col'>P</th>
+                  <th scope='col'>W</th>
+                  <th scope='col'>D</th>
+                  <th scope='col'>L</th>
+                  <th scope='col'>GS</th>
+                  <th scope='col'>GA</th>
+                  <th scope='col'>GD</th>
+                  <th scope='col'>PTS</th>
+                  </tr>
+                </thead>
+                { tournamentData.groups.map((group, groupIndex) => (
+                <tbody key = { groupIndex }>
+                  <tr>
+                    <td> Group { String.fromCharCode(65 + groupIndex) }</td>
+                  </tr>
+                  {group.map((participant, index) => (
+                    <tr key={index}>
+                      <td>{participant.participantName} - {participant.teamName}</td>
+                      <td>{participant.played}</td>
+                      <td>{participant.wins}</td>
+                      <td>{participant.draws}</td>
+                      <td>{participant.losses}</td>
+                      <td>{participant.goalsScored}</td>
+                      <td>{participant.goalsAgainst}</td>
+                      <td>{participant.goalDifference}</td>
+                      <td>{participant.points}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              ))}
+          </table>
+      </div>
 
     {tournamentData.format === 'league' && (
       <>
