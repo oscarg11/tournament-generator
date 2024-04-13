@@ -1,8 +1,14 @@
 const mongoose = require('mongoose');
 
 const ParticipantsStatsSchema = new mongoose.Schema({
-    goalsScored: {type: Number, defualt: 0},
-    goalsAgainst: {type: Number, defuault: 0}
+    matchesPlayed: {type: Number, defualt: 0},
+    wins: {type: Number, defualt: 0},
+    draws: {type: Number, default: 0},
+    losses: {type: Number, default: 0},
+    goalsScored: {type: Number, default: 0},
+    goalsAgainst: {type: Number, default: 0},
+    goalDifference: {type: Number, default: 0},
+    points: {type: Number, default: 0},
 })
 
 const MatchSchema = new mongoose.Schema({
