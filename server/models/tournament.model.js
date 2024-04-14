@@ -13,15 +13,14 @@ const ParticipantsStatsSchema = new mongoose.Schema({
 
 const MatchSchema = new mongoose.Schema({
     participants: [{
-        participantName: {type: String, required: true},
-        teamName: {type: String, required: true},
+        participant: { type: mongoose.Schema.Types.ObjectId, ref: 'Participant' },
         stats: ParticipantsStatsSchema,
     }],
     matchNumber : {type: Number, required: true },
     group: { type: String, required: true },
     score: {
-        participant1: {type: Number, defualt: 0 },
-        participant2: {type: Number, defualt: 0 }
+        participant1: {type: Number, default: 0 },
+        participant2: {type: Number, default: 0 }
     },
 });
 
