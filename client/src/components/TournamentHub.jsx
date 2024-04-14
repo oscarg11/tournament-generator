@@ -3,13 +3,20 @@ import {useParams} from 'react-router-dom'
 import axios from 'axios'
 import NavBar from './NavBar'
 
+const POINTS_PER_WIN = 3;
+const POINTS_PER_DRAW = 1;
+const POINTS_PER_LOSS = 0;
+
 const TournamentHub = () => {
   const { tournamentId } = useParams();
   console.log(tournamentId, "Tournament ID")
   const [tournamentData, setTournamentData] = useState({
     participants: [],
-    groups: []
+    groups: [],
+    numberOfGroupStageLegs: 0,
   });
+
+  const [matchData, setMatchData] = useState([]);
 
   //shuffle participants
   function shuffle(array) {
@@ -32,6 +39,24 @@ const TournamentHub = () => {
       }
     }
     return groups;
+  }
+
+  //update scores
+  const handleScoreUpdate = (groupIndex, participantIndex, score, opponentScore) => {
+    const newGroups = [...tournamentData.groups];
+    const participant = newGroups[groupIndex][participantIndex];
+    participant.matchesPlayed += 1;
+    participant.goalsScored += score;
+    participant.goalsAgainst += opponentScore;
+    participant.goalDifference = participant.goalsScored - participant.goalsAgainst;
+
+    if (score > opponentScore){
+      participant.points += POINTS_PER_WIN;
+    } else if (score === opponentScore){
+      participant.points += POINTS_PER_DRAW;
+    } else {
+      participant.points += POINTS_PER_LOSS;
+    }
   }
 
   useEffect(() => {
@@ -60,7 +85,7 @@ const TournamentHub = () => {
       <h1>{tournamentData.tournamentName}</h1>
       <p>Format: {tournamentData.format}</p>
       {tournamentData.format === 'groupAndKnockout' && <p>Number of group stage legs: {tournamentData.numberOfGroupStageLegs}</p>}
-
+      {/* groups */}
       { tournamentData.groups.map((group, groupIndex) => (
       <div key={ groupIndex } className='mb-3 container'>
         <div className='row'>
@@ -80,7 +105,6 @@ const TournamentHub = () => {
                 </thead>
                 <tbody key = { groupIndex }>
                 
-
                   {group.map((participant, index) => (
                     <tr key={index}>
                       <td className='col-2'>{participant.participantName} ({participant.teamName})</td>
@@ -99,6 +123,12 @@ const TournamentHub = () => {
         </div>
       </div>
               ))}
+    {/* match making */}
+    <div>
+        <form>
+          <label htmlFor="roundNum">Round {}</label>
+        </form>
+    </div>
 
     {tournamentData.format === 'league' && (
       <>
