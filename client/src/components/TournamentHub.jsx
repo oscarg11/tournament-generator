@@ -41,6 +41,10 @@ const TournamentHub = () => {
     return groups;
   }
 
+  //create matches
+  const createMatches = (groups) => {
+    
+  }
   //update scores
   const handleScoreUpdate = (groupIndex, participantIndex, score, opponentScore) => {
     const newGroups = [...tournamentData.groups];
