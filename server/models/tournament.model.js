@@ -1,28 +1,19 @@
 const mongoose = require('mongoose');
 
 const ParticipantsStatsSchema = new mongoose.Schema({
-    matchesPlayed: {type: Number, defualt: 0},
-    wins: {type: Number, defualt: 0},
-    draws: {type: Number, default: 0},
-    losses: {type: Number, default: 0},
-    goalsScored: {type: Number, default: 0},
-    goalsAgainst: {type: Number, default: 0},
-    goalDifference: {type: Number, default: 0},
-    points: {type: Number, default: 0},
+    participant: { type :mongoose.Schema.Types.ObjectId, ref: 'Participant', required: true },
+    goalsScored: { type: Number, default: 0 },
+    goalsAgainst: { type: Number, default: 0 },
+    result: { type: String, enum: ['win', 'loss', 'draw'], default: 'draw' },
 })
 
 const MatchSchema = new mongoose.Schema({
-    participants: [{
-        participant: { type: mongoose.Schema.Types.ObjectId, ref: 'Participant' },
-        stats: ParticipantsStatsSchema,
-    }],
+    participants: [ParticipantsStatsSchema],
     matchNumber : {type: Number, required: true },
     group: { type: String, required: true },
-    score: {
-        participant1: {type: Number, default: 0 },
-        participant2: {type: Number, default: 0 }
-    },
-});
+    startTime: { type: Date, default: Date.now },
+    endTime: { type: Date, default: Date.now },
+}, {timestamps: true});
 
 const TournamentSchema = new mongoose.Schema({
     tournamentName:{
