@@ -1,11 +1,20 @@
 const mongoose = require('mongoose');
 
 const ParticipantsStatsSchema = new mongoose.Schema({
-    participant: { type :mongoose.Schema.Types.ObjectId, ref: 'Participant', required: true },
+    participantName: {
+        type: String,
+        required: [true, "A name is required"],
+        minlength: [2, "First name must be at least 2 characters"]
+    },
+    teamName: {
+        type: String,
+        required: [true, "Team name is required"],
+        minlength: [2, "Team Name must be at least 2 characters"]
+        },
     goalsScored: { type: Number, default: 0 },
     goalsAgainst: { type: Number, default: 0 },
-    result: { type: String, enum: ['win', 'loss', 'draw'], default: 'draw' },
-})
+    result: { type: String, enum: ['win', 'loss', 'draw'] },
+});
 
 const MatchSchema = new mongoose.Schema({
     participants: [ParticipantsStatsSchema],
@@ -13,6 +22,10 @@ const MatchSchema = new mongoose.Schema({
     group: { type: String, required: true },
     startTime: { type: Date, default: Date.now },
     endTime: { type: Date, default: Date.now },
+    score: {
+        participant1Score: { type: Number, default: 0},
+        participant2Score: { type: Number, default: 0}
+    }
 }, {timestamps: true});
 
 const TournamentSchema = new mongoose.Schema({
@@ -36,20 +49,7 @@ const TournamentSchema = new mongoose.Schema({
             return this.format === 'groupAndKnockout';
         }, "Please select the number of group stage legs."],
     },
-    participants: [
-        {
-            participantName: {
-                type: String,
-                required: [true, "A name is required"],
-                minlength: [2, "First name must be at least 2 characters"]
-            },
-            teamName: {
-                type: String,
-                required: [true, "Team name is required"],
-                minlength: [2, "Team Name must be at least 2 characters"]
-                }
-        }
-    ],
+    participants: [ParticipantsStatsSchema],
     matches: [MatchSchema],
     
 }, {timestamps: true});
