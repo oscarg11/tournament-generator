@@ -43,6 +43,7 @@ const TournamentHub = () => {
 
   //create matches
   const createMatches = (groups) => {
+    let matches = [];
     
   }
   //update scores
