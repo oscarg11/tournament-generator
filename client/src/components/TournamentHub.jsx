@@ -16,7 +16,7 @@ const TournamentHub = () => {
     numberOfGroupStageLegs: 0,
   });
 
-  const [matchData, setMatchData] = useState([]);
+const [matchData, setMatchData] = useState([]);
 
   //shuffle participants
   function shuffle(array) {
@@ -42,9 +42,22 @@ const TournamentHub = () => {
   }
 
   //create matches
-  const createMatches = (groups) => {
+  const createGroupStageMatches = (groups) => {
     let matches = [];
-    
+
+    for( let i = 0; i < groups.length; i++){
+      for(let j = i + j; < groups.length; j++){
+        const match = {
+          participant1: groups[i],
+          participant2: groups[j],
+          scores: { participant1Score: 0, participant2Score: 0},
+          matchNumber: `${i}-${j}`,
+          group: String.fromCharCode(65 + i)
+        }
+        matches.push(match);
+      }
+    }
+    return matches;
   }
   //update scores
   const handleScoreUpdate = (groupIndex, participantIndex, score, opponentScore) => {
