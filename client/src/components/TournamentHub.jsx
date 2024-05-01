@@ -11,6 +11,7 @@ const TournamentHub = () => {
   const { tournamentId } = useParams();
   console.log(tournamentId, "Tournament ID")
   const [tournamentData, setTournamentData] = useState({
+    matches: [],
     participants: [],
     groups: [],
     numberOfGroupStageLegs: 0,
@@ -38,15 +39,16 @@ const [matchData, setMatchData] = useState([]);
         groups.push(participants.slice(i * 4, (i + 1) * 4));
       }
     }
+    console.log(groups, "Groups")
     return groups;
   }
 
-  //create matches
+  //create group stage matches
   const createGroupStageMatches = (groups) => {
-    let matches = [];
-
+    let Allmatches = [];
+    groups.forEach((group, groupIndex) => {
     for( let i = 0; i < groups.length; i++){
-      for(let j = i + j; < groups.length; j++){
+      for(let j = i + 1; j < group.length; j++){
         const match = {
           participant1: groups[i],
           participant2: groups[j],
@@ -54,11 +56,24 @@ const [matchData, setMatchData] = useState([]);
           matchNumber: `${i}-${j}`,
           group: String.fromCharCode(65 + i)
         }
-        matches.push(match);
+        Allmatches.push(match);
       }
     }
-    return matches;
+  });
+  
+  return Allmatches;
   }
+
+  useEffect(() => {
+    console.log(`Creating matches for groups ${tournamentData.groups}`);
+    if (tournamentData.groups.length > 0) {
+      const generatedMatches = createGroupStageMatches(tournamentData.groups);
+      console.log(generatedMatches, "Generated Matches")
+      setMatchData(generatedMatches);
+    }
+  }, [tournamentData.groups]);
+
+
   //update scores
   const handleScoreUpdate = (groupIndex, participantIndex, score, opponentScore) => {
     const newGroups = [...tournamentData.groups];
@@ -100,6 +115,7 @@ const [matchData, setMatchData] = useState([]);
   return (
     <div>
       <NavBar />
+      {/* group stage rendering */}
       <h1>{tournamentData.tournamentName}</h1>
       <p>Format: {tournamentData.format}</p>
       {tournamentData.format === 'groupAndKnockout' && <p>Number of group stage legs: {tournamentData.numberOfGroupStageLegs}</p>}
@@ -144,8 +160,47 @@ const [matchData, setMatchData] = useState([]);
     {/* match making */}
     <div>
         <form>
-          <label htmlFor="roundNum">Round {}</label>
-        </form>
+    <h2>Matches</h2>
+    {matchData && matchData.length > 0 ? ( // Checking if matchData is not null/undefined and has elements
+      matchData.map((match, index) => (
+        <div key={index} className='mb-3'>
+          <h3>{`Match ${match.matchNumber} - Group ${match.group}`}</h3>
+          <div className='row'>
+            {match.participants && match.participants.length > 0 ? ( // Checking if participants exist in the match
+              match.participants.map((participant, participantIndex) => (
+                <p key={participantIndex} className='col-6'>
+                  {participant.participantName} ({participant.teamName})
+                </p>
+              ))
+            ) : (
+              <p>No participants for this match.</p> // Handling the case where no participants data is available
+            )}
+            <div className='col-4'>
+              <input 
+                type="number"
+                min='0'
+                max='100'
+                value={match.score?.participant1Score}
+                onChange={(e) => handleScoreUpdate(match.group, match.participants[0], parseInt(e.target.value), match.score.participant2Score)}
+                // Adding parseInt to ensure the input is treated as a number
+              />
+              <span> - </span>
+              <input
+                type='number'
+                min='0'
+                max='10'
+                value={match.score?.participant2Score}
+                onChange={(e) => handleScoreUpdate(match.group, match.participants[1], parseInt(e.target.value), match.score.participant1Score)}
+                // Adding parseInt to ensure the input is treated as a number
+              />
+            </div>
+          </div>
+        </div>
+      ))
+    ) : (
+      <p>No matches to display.</p> // Handling the case where no matches are available
+    )}
+  </form>
     </div>
 
     {tournamentData.format === 'league' && (
