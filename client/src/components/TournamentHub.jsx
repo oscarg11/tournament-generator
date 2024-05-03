@@ -43,37 +43,6 @@ const [matchData, setMatchData] = useState([]);
     return groups;
   }
 
-  //create group stage matches
-  const createGroupStageMatches = (groups) => {
-    let Allmatches = [];
-    groups.forEach((group, groupIndex) => {
-    for( let i = 0; i < groups.length; i++){
-      for(let j = i + 1; j < group.length; j++){
-        const match = {
-          participant1: groups[i],
-          participant2: groups[j],
-          scores: { participant1Score: 0, participant2Score: 0},
-          matchNumber: `${i}-${j}`,
-          group: String.fromCharCode(65 + i)
-        }
-        Allmatches.push(match);
-      }
-    }
-  });
-  
-  return Allmatches;
-  }
-
-  useEffect(() => {
-    console.log(`Creating matches for groups ${tournamentData.groups}`);
-    if (tournamentData.groups.length > 0) {
-      const generatedMatches = createGroupStageMatches(tournamentData.groups);
-      console.log(generatedMatches, "Generated Matches")
-      setMatchData(generatedMatches);
-    }
-  }, [tournamentData.groups]);
-
-
   //update scores
   const handleScoreUpdate = (groupIndex, participantIndex, score, opponentScore) => {
     const newGroups = [...tournamentData.groups];
@@ -111,6 +80,38 @@ const [matchData, setMatchData] = useState([]);
     })
     .catch(err => console.log("Failed to fetch tournament data", err));
   }, [tournamentId]);
+
+   //create group stage matches
+  const createGroupStageMatches = (groups) => {
+    let Allmatches = [];
+    groups.forEach((group, groupIndex) => {
+      console.log("Current group participants:", group);
+    for( let i = 0; i < group.length; i++){
+      for(let j = i + 1; j < group.length; j++){
+        const match = {
+          participant1: group[i],
+          participant2: group[j],
+          scores: { participant1Score: 0, participant2Score: 0},
+          matchNumber: `${i}-${j}`,
+          group: String.fromCharCode(65 + i)
+        }
+        Allmatches.push(match);
+      }
+    }
+  });
+  console.log("matches generated", Allmatches)
+  return Allmatches;
+  }
+
+  useEffect(() => {
+    console.log(`Creating matches for groups ${tournamentData.groups}`);
+    if (tournamentData.groups.length > 0) {
+      const generatedMatches = createGroupStageMatches(tournamentData.groups);
+      console.log(generatedMatches, "Generated Matches")
+      setMatchData(generatedMatches);
+    }
+    console.log("Match Data", matchData)
+  }, [tournamentData.groups]);
 
   return (
     <div>
@@ -159,48 +160,26 @@ const [matchData, setMatchData] = useState([]);
               ))}
     {/* match making */}
     <div>
-        <form>
-    <h2>Matches</h2>
-    {matchData && matchData.length > 0 ? ( // Checking if matchData is not null/undefined and has elements
-      matchData.map((match, index) => (
-        <div key={index} className='mb-3'>
-          <h3>{`Match ${match.matchNumber} - Group ${match.group}`}</h3>
-          <div className='row'>
-            {match.participants && match.participants.length > 0 ? ( // Checking if participants exist in the match
-              match.participants.map((participant, participantIndex) => (
-                <p key={participantIndex} className='col-6'>
-                  {participant.participantName} ({participant.teamName})
-                </p>
-              ))
-            ) : (
-              <p>No participants for this match.</p> // Handling the case where no participants data is available
-            )}
-            <div className='col-4'>
-              <input 
-                type="number"
-                min='0'
-                max='100'
-                value={match.score?.participant1Score}
-                onChange={(e) => handleScoreUpdate(match.group, match.participants[0], parseInt(e.target.value), match.score.participant2Score)}
-                // Adding parseInt to ensure the input is treated as a number
-              />
-              <span> - </span>
-              <input
-                type='number'
-                min='0'
-                max='10'
-                value={match.score?.participant2Score}
-                onChange={(e) => handleScoreUpdate(match.group, match.participants[1], parseInt(e.target.value), match.score.participant1Score)}
-                // Adding parseInt to ensure the input is treated as a number
-              />
+    <form>
+        <h2>Matches</h2>
+        {matchData.map((match, index) => (
+            <div key={index} className='mb-3'>
+                <h3>{`Match ${match.matchNumber} - Group ${match.group}`}</h3>
+                <div className='row'>
+                    <p className='col-6'>{match.participant1.participantName} vs {match.participant2.participantName}</p>
+                    <div className='col-4'>
+                        <input type="number" min="0" max="100"
+                               value={match.scores.participant1Score}
+                               onChange={(e) => handleScoreUpdate(index, 0, e.target.value, match.scores.participant2Score)} />
+                        <span> - </span>
+                        <input type="number" min="0" max="100"
+                               value={match.scores.participant2Score}
+                               onChange={(e) => handleScoreUpdate(index, 1, e.target.value, match.scores.participant1Score)} />
+                    </div>
+                </div>
             </div>
-          </div>
-        </div>
-      ))
-    ) : (
-      <p>No matches to display.</p> // Handling the case where no matches are available
-    )}
-  </form>
+        ))}
+    </form>
     </div>
 
     {tournamentData.format === 'league' && (
