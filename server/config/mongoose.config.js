@@ -1,8 +1,9 @@
 const mongoose = require('mongoose');
- 
-mongoose.connect('mongodb://127.0.0.1:27017/tournament_generatorDB', {
-    //useNewUrlParser: true,
-    //useUnifiedTopology: true
+
+const MOGO_URI = process.env.MONGO_URI;
+const JWT_SECRET = process.env.JWT_SECRET;
+
+mongoose.connect(MOGO_URI, {
 })
     .then(() => console.log('Established a connection to the database'))
     .catch(err => console.log('Something went wrong when connecting to the database ', err));
