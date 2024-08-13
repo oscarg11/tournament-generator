@@ -117,7 +117,20 @@ const [matchData, setMatchData] = useState([]);
     <div>
       <NavBar />
       {/* group stage rendering */}
+
+      {/* tournament details */}
       <h1>{tournamentData.tournamentName}</h1>
+      <p>
+        Date: {" "}
+        {tournamentData.createdAt
+          ? new Intl.DateTimeFormat("en-US", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            }).format(new Date(tournamentData.createdAt))
+          : "N/A"
+          }
+        </p>
       <p>Format: {tournamentData.format}</p>
       {tournamentData.format === 'groupAndKnockout' && <p>Number of group stage legs: {tournamentData.numberOfGroupStageLegs}</p>}
       {/* groups */}
