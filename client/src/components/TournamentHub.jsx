@@ -50,23 +50,6 @@ const [matchData, setMatchData] = useState([]);
     return groups;
   }
 
-  //update scores
-  const handleScoreUpdate = (groupIndex, participantIndex, score, opponentScore) => {
-    const newGroups = [...tournamentData.groups];
-    const participant = newGroups[groupIndex][participantIndex];
-    participant.matchesPlayed += 1;
-    participant.goalsScored += score;
-    participant.goalsAgainst += opponentScore;
-    participant.goalDifference = participant.goalsScored - participant.goalsAgainst;
-
-    if (score > opponentScore){
-      participant.points += POINTS_PER_WIN;
-    } else if (score === opponentScore){
-      participant.points += POINTS_PER_DRAW;
-    } else {
-      participant.points += POINTS_PER_LOSS;
-    }
-  }
   // group stage
   useEffect(() => {
     console.log(`Fetching data for tournament ID: ${tournamentId}`);
@@ -88,29 +71,48 @@ const [matchData, setMatchData] = useState([]);
     .catch(err => console.log("Failed to fetch tournament data", err));
   }, [tournamentId]);
 
-   //create group stage matches
-  const createGroupStageMatches = (groups) => {
-    let Allmatches = [];
-    groups.forEach((group, groupIndex) => {
-      console.log("Current group participants:", group);
-    for( let i = 0; i < group.length; i++){
-      for(let j = i + 1; j < group.length; j++){
-        const match = {
-          participant1: group[i],
-          participant2: group[j],
-          scores: { participant1Score: 0, participant2Score: 0},
-          matchNumber: `${i}-${j}`,
-          group: String.fromCharCode(65 + i)
-        }
-        Allmatches.push(match);
-      }
-    }
-  });
-  console.log("matches generated", Allmatches)
-  return Allmatches;
-  }
   
-  //fetch match data 
+  //update scores
+  const handleScoreUpdate = (groupIndex, participantIndex, score, opponentScore) => {
+    const newGroups = [...tournamentData.groups];
+    const participant = newGroups[groupIndex][participantIndex];
+    participant.matchesPlayed += 1;
+  participant.goalsScored += score;
+  participant.goalsAgainst += opponentScore;
+  participant.goalDifference = participant.goalsScored - participant.goalsAgainst;
+  
+  if (score > opponentScore){
+    participant.points += POINTS_PER_WIN;
+  } else if (score === opponentScore){
+    participant.points += POINTS_PER_DRAW;
+  } else {
+    participant.points += POINTS_PER_LOSS;
+  }
+}
+//create group stage matches
+const createGroupStageMatches = (groups) => {
+let allMatches = [];
+groups.forEach((group, groupIndex) => {
+console.log("Current group participants:", group);
+for( let i = 0; i < group.length; i++){
+  for(let j = i + 1; j < group.length; j++){
+    const match = {
+      participant1: group[i],
+      participant2: group[j],
+      scores: { participant1Score: 0, participant2Score: 0},
+      matchNumber: `${i}-${j}`,
+      group: String.fromCharCode(65 + groupIndex)
+    }
+    allMatches.push(match);
+  }
+}
+});
+console.log("Groups in current Tournament:", groups);
+console.log("matches generated", allMatches)
+return allMatches;
+}
+
+//fetch match data 
   useEffect(() => {
     console.log(`Creating matches for groups ${tournamentData.groups}`);
     if (tournamentData.groups.length > 0) {

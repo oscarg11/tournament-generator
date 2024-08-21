@@ -7,7 +7,7 @@ const GroupMatches = ({matchData, handleScoreUpdate}) => {
             <h2>Matches</h2>
             {matchData.map((match, index) => (
                 <div key={index} className='mb-3'>
-                    <h3>{`Match ${match.matchNumber} - Group ${match.group}`}</h3>
+                    <h3>{`Group ${match.group}`}</h3>
                     <div className='row'>
                         <p className='col-6'>{match.participant1.participantName} vs {match.participant2.participantName}</p>
                         <div className='col-4'>
