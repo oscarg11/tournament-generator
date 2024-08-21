@@ -21,7 +21,8 @@ const TournamentHub = () => {
 
 const [matchData, setMatchData] = useState([]);
 
-  //shuffle participants
+  //Shuffle players function
+  
   const shuffle = (array) => {
     for (let i = array.length - 1; i > 0; i--){
       //generate random index from 0 to i
@@ -34,12 +35,14 @@ const [matchData, setMatchData] = useState([]);
   //create groups
   const createGroups = (participants) => {
     let groups = [];
-
+    // if there are exatcly 4 participants, create one group
     if (participants.length === 4){
       groups.push(participants);
     }else{
+      // if there are more than 4 participants, create multiple groups of 4
       const groupCount = participants.length / 4;
       for (let i = 0; i < groupCount; i++){
+        // use slice to get 4 participants at a time
         groups.push(participants.slice(i * 4, (i + 1) * 4));
       }
     }
