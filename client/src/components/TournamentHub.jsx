@@ -22,15 +22,17 @@ const TournamentHub = () => {
 const [matchData, setMatchData] = useState([]);
 
   //shuffle participants
-  function shuffle(array) {
+  const shuffle = (array) => {
     for (let i = array.length - 1; i > 0; i--){
+      //generate random index from 0 to i
       const j = Math.floor(Math.random() * (i + 1));
+      //then swap random index (j) with current index (i)
       [array[i], array[j]] = [array[j], array[i]];
     }
   }
 
   //create groups
-  function createGroups(participants){
+  const createGroups = (participants) => {
     let groups = [];
 
     if (participants.length === 4){
@@ -62,7 +64,7 @@ const [matchData, setMatchData] = useState([]);
       participant.points += POINTS_PER_LOSS;
     }
   }
-  // fetdgroup stage
+  // group stage
   useEffect(() => {
     console.log(`Fetching data for tournament ID: ${tournamentId}`);
     axios.get(`http://localhost:8000/api/tournament-hub/${tournamentId}`)
@@ -104,6 +106,7 @@ const [matchData, setMatchData] = useState([]);
   console.log("matches generated", Allmatches)
   return Allmatches;
   }
+  
   //fetch match data 
   useEffect(() => {
     console.log(`Creating matches for groups ${tournamentData.groups}`);
