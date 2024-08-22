@@ -20,6 +20,7 @@ const MatchSchema = new mongoose.Schema({
     participants: [ParticipantsStatsSchema],
     matchNumber : {type: Number, required: true },
     group: { type: String, required: true },
+    round: {type: Number, required: true },
     startTime: { type: Date, default: Date.now },
     endTime: { type: Date, default: Date.now },
     score: {
