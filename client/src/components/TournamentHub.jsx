@@ -21,7 +21,7 @@ const TournamentHub = () => {
 
 const [matchData, setMatchData] = useState([]);
 
-  //Shuffle players function
+  //SHUFFLE PLAYERS FUNCTION
   
   const shuffle = (array) => {
     for (let i = array.length - 1; i > 0; i--){
@@ -32,7 +32,7 @@ const [matchData, setMatchData] = useState([]);
     }
   }
 
-  //create groups
+  //CREATE GROUPS
   const createGroups = (participants) => {
     let groups = [];
     // if there are exatcly 4 participants, create one group
@@ -42,7 +42,7 @@ const [matchData, setMatchData] = useState([]);
       // if there are more than 4 participants, create multiple groups of 4
       const groupCount = participants.length / 4;
       for (let i = 0; i < groupCount; i++){
-        // use slice to get 4 participants at a time
+        // use slice to get 4 participants at a timeå
         groups.push(participants.slice(i * 4, (i + 1) * 4));
       }
     }
@@ -50,7 +50,7 @@ const [matchData, setMatchData] = useState([]);
     return groups;
   }
 
-  // group stage
+  // GROUP STAGE
   useEffect(() => {
     console.log(`Fetching data for tournament ID: ${tournamentId}`);
     axios.get(`http://localhost:8000/api/tournament-hub/${tournamentId}`)
@@ -72,7 +72,7 @@ const [matchData, setMatchData] = useState([]);
   }, [tournamentId]);
 
   
-  //update scores
+//UPDATE SCORES
   const handleScoreUpdate = (groupIndex, participantIndex, score, opponentScore) => {
     const newGroups = [...tournamentData.groups];
     const participant = newGroups[groupIndex][participantIndex];
@@ -89,30 +89,57 @@ const [matchData, setMatchData] = useState([]);
     participant.points += POINTS_PER_LOSS;
   }
 }
-//create group stage matches
+
+//CREATE GROUP STAGE MATCHES
 const createGroupStageMatches = (groups) => {
-let allMatches = [];
+let rounds = [];
+//loop through each group
 groups.forEach((group, groupIndex) => {
 console.log("Current group participants:", group);
-for( let i = 0; i < group.length; i++){
-  for(let j = i + 1; j < group.length; j++){
-    const match = {
-      participant1: group[i],
-      participant2: group[j],
-      scores: { participant1Score: 0, participant2Score: 0},
-      matchNumber: `${i}-${j}`,
-      group: String.fromCharCode(65 + groupIndex)
+const numOfParticipants = group.length;
+
+//calculate total number of rounds based on the number of participants and legs
+const totalRounds = tournamentData.numberOfGroupStageLegs === 1
+? numOfParticipants - 1
+: 2 * (numOfParticipants - 1);  //if there are 2 legs, then the total number of rounds will be 2 * (numOfParticipants - 1)
+
+//loop to create an empty array for each round
+for(let i = 0; i <totalRounds; i++){
+  rounds.push([])
+}
+
+//round index to keep track of the current round
+let roundIndex = 0;
+
+//loop to through each leg of the group stage
+for(let leg = 1; leg <= tournamentData.numberOfGroupStageLegs; leg++) {
+  for( let i = 0; i < group.length; i++){ //loop through each participant in the group
+    for(let j = i + 1; j < group.length; j++){ //nested loop to pair each participant with every other participant in the group
+      //match object
+      const match = {
+        participant1: group[i],
+        participant2: group[j],
+        scores: { participant1Score: 0, participant2Score: 0},
+        matchNumber: `${i}-${j}`,
+        group: String.fromCharCode(65 + groupIndex)
+      }
+      //assign the match to the correct round
+      rounds[roundIndex % totalRounds].push(match);
+
+      //increment the round index to move to the next round
+      roundIndex++;
+
     }
-    allMatches.push(match);
   }
+  
 }
 });
 console.log("Groups in current Tournament:", groups);
-console.log("matches generated", allMatches)
-return allMatches;
+console.log("matches generated", rounds)
+return rounds;
 }
 
-//fetch match data 
+//FETCH MATCH DATA 
   useEffect(() => {
     console.log(`Creating matches for groups ${tournamentData.groups}`);
     if (tournamentData.groups.length > 0) {
@@ -121,7 +148,7 @@ return allMatches;
       setMatchData(generatedMatches);
     }
     console.log("Match Data", matchData)
-  }, [tournamentData.groups]);
+  }, [tournamentData.groups, tournamentData.numberOfGroupStageLegs]);
 
   return (
     <div>
