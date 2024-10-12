@@ -1,8 +1,8 @@
 import React from 'react'
 
 const GroupMatches = ({matchData, handleScoreUpdate}) => {
-
 let lastGroup = ''; //keep track of the last group to compare with the current group
+
 return (
     <div>
         <form>
