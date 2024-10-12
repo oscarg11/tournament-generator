@@ -22,7 +22,6 @@ const TournamentHub = () => {
 const [matchData, setMatchData] = useState([]);
 
   //SHUFFLE PLAYERS FUNCTION
-  
   const shuffle = (array) => {
     for (let i = array.length - 1; i > 0; i--){
       //generate random index from 0 to i
@@ -111,27 +110,32 @@ for(let i = 0; i <totalRounds; i++){
 //round index to keep track of the current round
 let roundIndex = 0;
 
-//loop to through each leg of the group stage
+//loop through each leg of the group stage
 for(let leg = 1; leg <= tournamentData.numberOfGroupStageLegs; leg++) {
-  for( let i = 0; i < group.length; i++){ //loop through each participant in the group
-    for(let j = i + 1; j < group.length; j++){ //nested loop to pair each participant with every other participant in the group
+  for( let round = 0; round < numOfParticipants -1; round++){ //loop through each participant in the group
+
+      // pair players for the current round
+      for(let i =0; i < group.length / 2; i++){
+        const participant1 = group[i];
+        const participant2 = group[group.length - 1 - i]; //pair players from opposite ends of the array
+
       //match object
       const match = {
-        participant1: group[i],
-        participant2: group[j],
+        participant1: participant1,
+        participant2: participant2,
         scores: { participant1Score: 0, participant2Score: 0},
-        matchNumber: `${i}-${j}`,
+        matchNumber: `${i}-${group.length - 1}`,
         group: String.fromCharCode(65 + groupIndex)
       }
       //assign the match to the correct round
       rounds[roundIndex % totalRounds].push(match);
-
+    }
       //increment the round index to move to the next round
       roundIndex++;
 
-    }
+      //rotate the participants in the group array
+      group.splice(1, 0, group.pop());
   }
-  
 }
 });
 console.log("Groups in current Tournament:", groups);
