@@ -6,4 +6,7 @@ module.exports = app => {
     app.post('/api/tournaments/create-tournament', TournamentController.createTournament );
     app.patch('/api/tournaments/:id', TournamentController.updateTournament);
     app.delete('/api/tournaments/:id', TournamentController.deleteTournament);
+
+    // update match scores
+    app.put('/api/tournaments/:tournamentId/matches/:roundIndex/:matchIndex', TournamentController.updateGroupStageMatchScores);
 };
