@@ -1,7 +1,7 @@
 import React from 'react'
 
 
-const GroupStandings = ({groups}) => {
+const GroupStandings = ({groups = []}) => {
   return (
     <div>
         { groups.map((group, groupIndex) => (

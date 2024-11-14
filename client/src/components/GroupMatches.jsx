@@ -1,4 +1,5 @@
 import React, {useState, useEffect} from 'react'
+import axios from 'axios'
 
 const POINTS_PER_WIN = 3;
 const POINTS_PER_DRAW = 1;
@@ -38,51 +39,97 @@ const createGroups = (participants) => {
 }
 
 
-//UPDATE SCORES
-const handleScoreUpdate = (groupIndex, participantIndex, score, opponentScore) => {
-    const newGroups = [...tournamentData.groups];
-    const participant = newGroups[groupIndex][participantIndex];
-    participant.matchesPlayed += 1;
-    participant.goalsScored += score;
-    participant.goalsAgainst += opponentScore;
-    participant.goalDifference = participant.goalsScored - participant.goalsAgainst;
-  
-  if (score > opponentScore){
-    participant.points += POINTS_PER_WIN;
-  } else if (score === opponentScore){
-    participant.points += POINTS_PER_DRAW;
-  } else {
-    participant.points += POINTS_PER_LOSS;
+// UPDATE SCORES
+const handleScoreUpdate = async (tournamentId, roundIndex, matchIndex, participant1Score, participant2Score) => {
+  try {
+    // Update the backend with the new scores
+    await axios.put(`/api/tournaments/${tournamentId}/matches/${roundIndex}/${matchIndex}`, {
+      participant1Score,
+      participant2Score,
+    });
+    console.log("Scores updated successfully!");
+
+    //Update local state to reflect changes immediately
+    const updatedMatchData = [...matchData];
+    const match = updatedMatchData[roundIndex][matchIndex];
+    match.scores.participant1Score = participant1Score;
+    match.scores.participant2Score = participant2Score;
+
+    // Updating participant statistics in `tournamentData.groups`
+    const updatedGroups = [...tournamentData.groups];
+    const participant1 = updatedGroups[match.group.charCodeAt(0) - 65].find(
+      (participant) => participant.participantName === match.participant1.participantName
+    );
+    const participant2 = updatedGroups[match.group.charCodeAt(0) - 65].find(
+      (participant) => participant.participantName === match.participant2.participantName
+    );
+
+    if (participant1 && participant2) {
+      // Update participant statistics
+      participant1.matchesPlayed += 1;
+      participant2.matchesPlayed += 1;
+
+      participant1.goalsScored += participant1Score;
+      participant2.goalsScored += participant2Score;
+
+      participant1.goalsAgainst += participant2Score;
+      participant2.goalsAgainst += participant1Score;
+
+      participant1.goalDifference = participant1.goalsScored - participant1.goalsAgainst;
+      participant2.goalDifference = participant2.goalsScored - participant2.goalsAgainst;
+
+      // Update points based on scores
+      if (participant1Score > participant2Score) {
+        participant1.points += POINTS_PER_WIN;
+        participant2.points += POINTS_PER_LOSS;
+      } else if (participant1Score < participant2Score) {
+        participant1.points += POINTS_PER_LOSS;
+        participant2.points += POINTS_PER_WIN;
+      } else {
+        participant1.points += POINTS_PER_DRAW;
+        participant2.points += POINTS_PER_DRAW;
+      }
+    }
+
+    // Step 3: Update state with new matches and participants
+    setMatchData(updatedMatchData);
+    setTournamentData((prevData) => ({
+      ...prevData,
+      groups: updatedGroups,
+    }));
+  } catch (error) {
+    console.error("Error updating scores:", error);
   }
-}
+};
+
 
 //generate matches
 useEffect(() => {
   // Generate matches by pairing participants in each group for multiple rounds
-
   const createGroupStageMatches = (groups) => {
+    if (!groups || groups.length === 0) {
+      console.warn("Groups data is undefined or empty. Cannot generate matches.");
+      return []; // Return an empty array if groups are invalid
+    }
+
     let rounds = [];
     //loop through each group
     groups.forEach((group, groupIndex) => {
     console.log("Current group participants:", group);
     const numOfParticipants = group.length;
-    //calculate total number of rounds based on the number of participants and legs
     const totalRounds = tournamentData.numberOfGroupStageLegs === 1
     ? numOfParticipants - 1
     : 2 * (numOfParticipants - 1);  //if there are 2 legs, then the total number of rounds will be 2 * (numOfParticipants - 1)
     
-    //loop to create an empty array for each round
+    //create empty arrays for each round
     for(let i = 0; i <totalRounds; i++){
       rounds.push([])
     }
-    
-    //round index to keep track of the current round
     let roundIndex = 0;
     
     //loop through each leg of the group stage
     for(let leg = 1; leg <= tournamentData.numberOfGroupStageLegs; leg++) {
       for( let round = 0; round < numOfParticipants -1; round++){ //loop through each participant in the group
-    
           // pair players for the current round
           for(let i =0; i < group.length / 2; i++){
             const participant1 = group[i];
@@ -122,8 +169,8 @@ useEffect(() => {
       const groups = createGroups(shuffledParticipants);
       //generate matches
 
-      if (groups.length > 0){
-        const generatedMatches = createGroupStageMatches(tournamentData.groups);
+      if (groups && groups.length > 0){
+        const generatedMatches = createGroupStageMatches(groups);
         console.log(generatedMatches, "Generated Matches")
         setMatchData(generatedMatches);
      //set groups in tournamentData if needed for display or other components
@@ -134,11 +181,8 @@ useEffect(() => {
   }
 }
 }, [
-  tournamentData.groups,
   tournamentData.numberOfGroupStageLegs,
   tournamentData.participants,
-  matchData,
-  setTournamentData,
 ]);
 
 
