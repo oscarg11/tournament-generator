@@ -242,19 +242,7 @@ const TournamentForm = () => {
                 </button>
               </li>
               ))}
-                {/* {Array.from({ length: tournamentData.numberOfParticipants }, (_, i) => (
-                  <li key={i} style={{ marginBottom: '10px',color: tournamentData.participants[i] ? 'black' : '#999' }}>
-                    {tournamentData.participants[i] ? 
-                    // If a participant exists, display their name and team name
-                      `${tournamentData.participants[i].participantName} (${tournamentData.participants[i].teamName})`
-                      :"Participant Name"}
-                    {tournamentData.participants[i] && (
-                      <button className='btn btn-danger' onClick={() => handleDeleteParticipant(i)} style={{ marginLeft: "10px" }}>
-                        Delete
-                      </button>
-                    )}
-                  </li>
-                ))} */}
+                
               </ol>
             </div>
           </div>

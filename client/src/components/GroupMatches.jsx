@@ -38,69 +38,16 @@ const createGroups = (participants) => {
     return groups;
 }
 
+// onChange handler
+const onChangeHandler = (e) => {
+    setMatchData({...matchData, [e.target.name]: e.target.value})
+}
 
-// UPDATE SCORES
-const handleScoreUpdate = async (tournamentId, roundIndex, matchIndex, participant1Score, participant2Score) => {
-  try {
-    // Update the backend with the new scores
-    await axios.put(`/api/tournaments/${tournamentId}/matches/${roundIndex}/${matchIndex}`, {
-      participant1Score,
-      participant2Score,
-    });
-    console.log("Scores updated successfully!");
-
-    //Update local state to reflect changes immediately
-    const updatedMatchData = [...matchData];
-    const match = updatedMatchData[roundIndex][matchIndex];
-    match.scores.participant1Score = participant1Score;
-    match.scores.participant2Score = participant2Score;
-
-    // Updating participant statistics in `tournamentData.groups`
-    const updatedGroups = [...tournamentData.groups];
-    const participant1 = updatedGroups[match.group.charCodeAt(0) - 65].find(
-      (participant) => participant.participantName === match.participant1.participantName
-    );
-    const participant2 = updatedGroups[match.group.charCodeAt(0) - 65].find(
-      (participant) => participant.participantName === match.participant2.participantName
-    );
-
-    if (participant1 && participant2) {
-      // Update participant statistics
-      participant1.matchesPlayed += 1;
-      participant2.matchesPlayed += 1;
-
-      participant1.goalsScored += participant1Score;
-      participant2.goalsScored += participant2Score;
-
-      participant1.goalsAgainst += participant2Score;
-      participant2.goalsAgainst += participant1Score;
-
-      participant1.goalDifference = participant1.goalsScored - participant1.goalsAgainst;
-      participant2.goalDifference = participant2.goalsScored - participant2.goalsAgainst;
-
-      // Update points based on scores
-      if (participant1Score > participant2Score) {
-        participant1.points += POINTS_PER_WIN;
-        participant2.points += POINTS_PER_LOSS;
-      } else if (participant1Score < participant2Score) {
-        participant1.points += POINTS_PER_LOSS;
-        participant2.points += POINTS_PER_WIN;
-      } else {
-        participant1.points += POINTS_PER_DRAW;
-        participant2.points += POINTS_PER_DRAW;
-      }
-    }
-
-    // Step 3: Update state with new matches and participants
-    setMatchData(updatedMatchData);
-    setTournamentData((prevData) => ({
-      ...prevData,
-      groups: updatedGroups,
-    }));
-  } catch (error) {
-    console.error("Error updating scores:", error);
-  }
-};
+//handle score submit
+const handleScoreSubmit = (e) =>{
+    e.preventDefault();
+    console.log(matchData, "Match Data")
+}
 
 
 //generate matches
@@ -188,48 +135,75 @@ useEffect(() => {
 
 return (
     <div>
-        <form>
-            <h2>Matches</h2>
-            {matchData.map((round, roundIndex) => (
-                <div key={roundIndex} className='mb-5'>
-                    <h3>{`Round ${roundIndex + 1}`}</h3>  {/* Display round number */}
-                    
-                    {round.map((match, matchIndex) => {
-                        const showGroupHeading = match.group !== lastGroup; // Display group heading only if it's a new group
-                        lastGroup = match.group;  // Update lastGroup to the current match's group
+        <form onSubmit={ handleScoreSubmit }>
+          <h2>Group Matches</h2>
+          {/* Iterate over rounds of matches */}
+          {matchData.map((round, roundIndex) =>{
+            // Get the current group from the first match in the round
+            const currentGroup = round[0]?.group || '';
 
-                        return (
-                            <div key={matchIndex} className='mb-3'>
-                                {showGroupHeading && (
-                                    <h4>{`Group ${match.group}`}</h4>  // Display group heading only once
-                                )}
-                                <div className='row'>
-                                    <p className='col-6'>
-                                        {match.participant1.participantName} vs {match.participant2.participantName}
-                                    </p>
-                                    <div className='col-4'>
-                                        <input 
-                                            type="number" 
-                                            min="0" 
-                                            max="100"
-                                            value={match.scores.participant1Score}
-                                            onChange={(e) => handleScoreUpdate(roundIndex, matchIndex, e.target.value, match.scores.participant2Score)} 
-                                        />
-                                        <span> - </span>
-                                        <input 
-                                            type="number" 
-                                            min="0" 
-                                            max="100"
-                                            value={match.scores.participant2Score}
-                                            onChange={(e) => handleScoreUpdate(roundIndex, matchIndex, e.target.value, match.scores.participant1Score)} 
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            ))}
+            return (
+              <div key={roundIndex} className='mb-5'>
+                {/* display group name */}
+                {roundIndex === 0 && (
+                  <h3>{`Group ${currentGroup}`}</h3>
+                )}
+                {/* Round number */}
+                <h4>{`Round ${roundIndex + 1}`}</h4>
+
+                {/* Iterate over matches in the current round */}
+                <div className='row g-3 justify-content-center'>    {/* Each round is a row */}
+                  {round.map((match, matchIndex) => (
+                    // match card
+                    <div key={matchIndex} className='col-md-4'>     {/* Each match card is a colum*/}
+                      <div className="card p-3 align-items-center">
+                        <div className='card-body d-flex'>
+                          {/* participant 1 */}
+                          <label className='me-2'>
+                            {match.participant1.participantName}
+                          </label>
+
+                          {/* score input for participant1 */}
+                          <input
+                              type='number'
+                              className='form-control me-2'
+                              style={{width: "60px"}}
+                              min='0'
+                              max='100'
+                              value={match.scores.participant1Score}
+                              onChange={ onChangeHandler}
+                              >
+                          </input>
+
+                          <span className='mx-2'>-</span>
+
+                          {/* score input for participant2 */}
+                          <input
+                              type='number'
+                              className='form-control me-2'
+                              style={{width: "60px"}}
+                              min='0'
+                              max='100'
+                              value={match.scores.participant2Score}
+                              onChange={ onChangeHandler}
+                              >
+                          </input>
+
+                          {/* participant 2 */}
+                          <label className='ms-2'>
+                            {match.participant2.participantName}
+                          </label>
+                        </div>
+                        {/* submit scores button */}
+                      <button type='submit' className='btn btn-primary mt-2'>Confirm</button>
+                      </div>
+                    </div>
+                    ))}
+
+                  </div>
+              </div>
+            )
+          })}
         </form>
     </div>
 );
