@@ -39,8 +39,20 @@ const createGroups = (participants) => {
 }
 
 // onChange handler
-const onChangeHandler = (e) => {
-    setMatchData({...matchData, [e.target.name]: e.target.value})
+const onChangeHandler = (e, roundIndex, matchIndex, participantNumber) => {
+  //create a copy of the match data
+  const updatedMatches = [...matchData];
+
+  //get current match to be updated
+  const matchToUpdate = matchData[roundIndex][matchIndex];
+
+  //update the correct paticipants score
+  if (participantNumber === 1){
+    matchToUpdate.scores.participant1Score = parseInt(e.target.value);
+} else if (participantNumber === 2){
+    matchToUpdate.scores.participant2Score = parseInt(e.target.value);
+}
+  setMatchData(updatedMatches)
 }
 
 //handle score submit
@@ -171,7 +183,7 @@ return (
                               min='0'
                               max='100'
                               value={match.scores.participant1Score}
-                              onChange={ onChangeHandler}
+                              onChange={(e) => onChangeHandler(e, roundIndex, matchIndex, 1)}
                               >
                           </input>
 
@@ -185,7 +197,7 @@ return (
                               min='0'
                               max='100'
                               value={match.scores.participant2Score}
-                              onChange={ onChangeHandler}
+                              onChange={(e) => onChangeHandler(e, roundIndex, matchIndex, 2)}
                               >
                           </input>
 
