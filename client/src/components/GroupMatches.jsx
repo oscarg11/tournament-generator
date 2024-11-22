@@ -56,9 +56,23 @@ const onChangeHandler = (e, roundIndex, matchIndex, participantNumber) => {
 }
 
 //handle score submit
-const handleScoreSubmit = (e) =>{
+const handleScoreSubmit = (e, tournamentId, roundIndex, matchIndex) =>{
     e.preventDefault();
-    console.log(matchData, "Match Data")
+    
+    const updatedMatchData = [...matchData];
+    const matchToSubmit = matchData[roundIndex][matchIndex];
+
+    determineMatchResult(matchToSubmit);
+
+    axios.put(`/api/tournaments/${tournamentId}/matches/${roundIndex}/${matchIndex}`, matchToSubmit)
+    .then((response) => {
+      console.log(response.data, "Match result submitted successfully");
+      setMatchData(updatedMatchData);
+    })
+    .catch((error) => {
+      console.error("Error submitting match result:", error);
+    });
+    console.log(updatedMatchData, "Match Data")
 }
 
 
