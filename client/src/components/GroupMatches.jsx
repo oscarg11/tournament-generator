@@ -1,9 +1,6 @@
 import React, {useState, useEffect} from 'react'
+import { determineMatchResult, saveMatches } from '../helpers/tournamentUtills';
 import axios from 'axios'
-
-const POINTS_PER_WIN = 3;
-const POINTS_PER_DRAW = 1;
-const POINTS_PER_LOSS = 0;
 
 const GroupMatches = ({tournamentData, setTournamentData}) => {
     const [matchData, setMatchData] = useState([]);
@@ -56,23 +53,26 @@ const onChangeHandler = (e, roundIndex, matchIndex, participantNumber) => {
 }
 
 //handle score submit
-const handleScoreSubmit = (e, tournamentId, roundIndex, matchIndex) =>{
+const handleScoreSubmit = (e, tournmanentId, roundIndex, matchIndex) =>{
     e.preventDefault();
-    
+
+    //get the current match
     const updatedMatchData = [...matchData];
-    const matchToSubmit = matchData[roundIndex][matchIndex];
+    const matchToSubmit = updatedMatchData[roundIndex][matchIndex];
 
-    determineMatchResult(matchToSubmit);
+    //call determineMatchResult function to determine the result of the match
+    determineMatchResult(matchToSubmit)
 
-    axios.put(`/api/tournaments/${tournamentId}/matches/${roundIndex}/${matchIndex}`, matchToSubmit)
-    .then((response) => {
-      console.log(response.data, "Match result submitted successfully");
+    //update backend with the new match data
+    axios.put(`http://localhost:8000/api/tournaments/${tournamentData._id}/matches/${roundIndex}/${matchIndex}`, matchToSubmit)
+    .then(res => {
+      console.log("Match updated successfully", res.data);
+      //update the match data in the state
+      updatedMatchData[roundIndex][matchIndex] = matchToSubmit;
       setMatchData(updatedMatchData);
     })
-    .catch((error) => {
-      console.error("Error submitting match result:", error);
-    });
-    console.log(updatedMatchData, "Match Data")
+    .catch(err => console.log("Error updating match", err));
+    
 }
 
 
@@ -105,16 +105,18 @@ useEffect(() => {
       for( let round = 0; round < numOfParticipants -1; round++){ //loop through each participant in the group
           // pair players for the current round
           for(let i =0; i < group.length / 2; i++){
-            const participant1 = group[i];
-            const participant2 = group[group.length - 1 - i]; //pair players from opposite ends of the array
+            const participant1 = group[i]._id; //get participants by id
+            const participant2 = group[group.length - 1 - i]._id; 
     
           //match object
           const match = {
-            participant1: participant1,
-            participant2: participant2,
-            scores: { participant1Score: 0, participant2Score: 0},
+            participants: [
+              { participantId: participant1, score: 0},
+              { participantId: participant2, score: 0}
+            ],
             matchNumber: `${i}-${group.length - 1}`,
-            group: String.fromCharCode(65 + groupIndex)
+            group: String.fromCharCode(65 + groupIndex), //convert group index to letter
+            round: roundIndex,
           }
           //assign the match to the correct round
           rounds[roundIndex % totalRounds].push(match);
@@ -128,12 +130,12 @@ useEffect(() => {
     }
     });
     console.log("Groups in current Tournament:", groups);
-    console.log("matches generated", rounds)
+    console.log("number of rounds", rounds)
     return rounds;
     }
 
    // Shuffle participants, create groups, and generate matches
-    console.log(`Creating matches for groups ${tournamentData.groups}`);
+    console.log(`Creating matches for groups ${tournamentData.group}`);
     if (tournamentData.participants && tournamentData.participants.length > 0){
       //shuffle participants in each group
       const shuffledParticipants = [...tournamentData.participants];
@@ -146,11 +148,11 @@ useEffect(() => {
         const generatedMatches = createGroupStageMatches(groups);
         console.log(generatedMatches, "Generated Matches")
         setMatchData(generatedMatches);
-     //set groups in tournamentData if needed for display or other components
-    setTournamentData((prevData) => ({
-      ...prevData, // Spread in the current state to keep existing properties
-      groups: groups,  // Set `groups` to the newly created `groups`
-    }));
+
+        //save matches to the database
+        saveMatches(tournamentData._id, generatedMatches)
+          .then(() => console.log("Matches saved successfully"))
+          .catch(err => console.log("Error saving matches", err));
   }
 }
 }, [
@@ -221,7 +223,10 @@ return (
                           </label>
                         </div>
                         {/* submit scores button */}
-                      <button type='submit' className='btn btn-primary mt-2'>Confirm</button>
+                      <button type='submit'
+                              className='btn btn-primary mt-2'
+                              onClick={(e) => handleScoreSubmit(e, tournamentData._id, roundIndex, matchIndex)}
+                              >Confirm</button>
                       </div>
                     </div>
                     ))}
