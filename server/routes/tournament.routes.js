@@ -7,6 +7,10 @@ module.exports = app => {
     app.patch('/api/tournaments/:id', TournamentController.updateTournament);
     app.delete('/api/tournaments/:id', TournamentController.deleteTournament);
 
+    // save matches
+    app.patch('/api/tournaments/:id/save-matches', TournamentController.saveMatches);
+
+
     // update match scores
     app.put('/api/tournaments/:tournamentId/matches/:roundIndex/:matchIndex', TournamentController.updateGroupStageMatchScores);
 };
