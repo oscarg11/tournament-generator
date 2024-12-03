@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const ParticipantsStatsSchema = new mongoose.Schema({
+const ParticipantSchema = new mongoose.Schema({
     participantName: {
         type: String,
         required: [true, "A name is required"],
@@ -13,20 +13,31 @@ const ParticipantsStatsSchema = new mongoose.Schema({
         },
     goalsScored: { type: Number, default: 0 },
     goalsAgainst: { type: Number, default: 0 },
-    result: { type: String, enum: ['win', 'loss', 'draw'] },
-});
+    goalDifference: { type: Number, default: 0 },
+    points: { type: Number, default: 0},
+    matchesPlayed: { type: Number, default: 0 },
+    wins: { type: Number, default: 0 },
+    draws: { type: Number, default: 0 },
+    losses: { type: Number, default: 0 },
+    matchHistory: {
+        type: [String],
+        default: []
+    }
+}, {timestamps: true});
 
 const MatchSchema = new mongoose.Schema({
-    participants: [ParticipantsStatsSchema],
+    participants: [
+        {
+            participantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Participant' },
+            score: { type: Number, default: 0 }
+        }
+    ],
     matchNumber : {type: Number, required: true },
     group: { type: String, required: true },
     round: {type: Number, required: true },
     startTime: { type: Date, default: Date.now },
     endTime: { type: Date, default: Date.now },
-    score: {
-        participant1Score: { type: Number, default: 0},
-        participant2Score: { type: Number, default: 0}
-    }
+    result: { type: String, enum: ['pending', 'draw', 'win', 'loss'], default: 'pending' }
 }, {timestamps: true});
 
 const TournamentSchema = new mongoose.Schema({
@@ -50,11 +61,17 @@ const TournamentSchema = new mongoose.Schema({
             return this.format === 'groupAndKnockout';
         }, "Please select the number of group stage legs."],
     },
-    participants: [ParticipantsStatsSchema],
-    matches: [MatchSchema],
+    participants: [
+        { type: mongoose.Schema.Types.ObjectId, ref: 'Participant' }
+    ],
+    matches: [
+        { type: mongoose.Schema.Types.ObjectId, ref: 'Match' }
+    ],
     
 }, {timestamps: true});
 
-
+const Participant = mongoose.model('Participant', ParticipantSchema);
+const Match = mongoose.model('Match', MatchSchema);
 const Tournament = mongoose.model('Tournament', TournamentSchema);
-module.exports = Tournament
+
+module.exports = {Participant, Match, Tournament};
