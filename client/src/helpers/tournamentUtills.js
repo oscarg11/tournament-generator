@@ -1,5 +1,16 @@
 import axios from "axios";
-import { Match, Tournament } from "../../../server/models/tournament.model";
+
+
+export const loadTournamentData = async (tournamentId) => {
+  try {
+    const response = await axios.get(`http://localhost:8000/api/tournament-hub/${tournamentId}`);
+    return response.data.oneTournament;  // Replace `oneTournament` if your API returns something different
+  } catch (err) {
+    console.error("Error loading tournament data:", err);
+    throw err;
+  }
+};
+
 
 //determin match result
 export const determineMatchResult = (participant1, participant2, score,match) => {
@@ -48,21 +59,16 @@ export const determineMatchResult = (participant1, participant2, score,match) =>
 }
 
 //save matches to the database
-export const saveMatches = async  (tournamentId, matches) => {
-    try{
-        const savedMatches = [];
-        for (let match of matches){
-            const savedMatch = await Match.create(match);
-            savedMatches.push(savedMatch._id);
-        }
-
-        await Tournament.findByIdAndUpdate(
-            tournamentId,
-            { $push: { matches: { $each: savedMatches } } },
-            { new: true }
+export const saveMatches = async (tournamentId, matches) => {
+    try {
+        const response = await axios.post(
+            `http://localhost:8000/api/tournaments/${tournamentId}/save-matches`,
+            { matches }
         );
-        console.log("Matches saved successfully", savedMatches);
-    }catch(err){
-        console.log("Error saving matches", err);
+        console.log("Matches saved successfully", response.data);
+        return response.data;
+    } catch (err) {
+        console.error("Error saving matches:", err);
+        throw err;
     }
-}
+};

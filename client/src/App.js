@@ -2,11 +2,10 @@ import { BrowserRouter, Routes, Route} from 'react-router-dom'
 import axios from 'axios';
 import './App.css';
 import { useEffect } from 'react';
-import NavBar from './components/NavBar';
-import LandingPage from './components/LandingPage';
-import TournamentForm from './components/TournamentForm';
-import TournamentHub from './components/TournamentHub';
-import Dashboard from './components/Dashboard';
+import HomePage from './pages/HomePage';
+import CreateTournament from './components/CreateTournament';
+import Dashboard from './pages/Dashboard';
+import AllTournaments from './components/AllTournaments';
 
 function App() {
   useEffect(() => {
@@ -19,10 +18,10 @@ function App() {
     <div className="App">
       <BrowserRouter>
         <Routes>
-          <Route path='/' element={ <LandingPage/> } />
-          <Route path='/create-tournament' element={ <TournamentForm/> } />
-          <Route path='/dashboard' element= { <Dashboard/> }/>
-          <Route path='/tournament-hub/:tournamentId' element={ <TournamentHub/> }/>
+          <Route path='/' element={ <HomePage/> } />
+          <Route path='/create-tournament' element={ <CreateTournament/> } />
+          <Route path='/dashboard/:tournamentId' element={ <Dashboard/> } />
+          <Route path='/all-tournaments' element= { <AllTournaments/> }/>
         </Routes>
       </BrowserRouter>
     </div>
