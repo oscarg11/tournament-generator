@@ -1,12 +1,12 @@
 import React, {useState, useEffect} from 'react'
 import {useParams} from 'react-router-dom'
 import axios from 'axios'
-import NavBar from './NavBar'
-import GroupStandings from './GroupStandings'
-import GroupMatches from './GroupMatches'
+import NavBar from '../components/NavBar'
+import GroupStandings from '../components/GroupStandings'
+import GroupMatches from '../components/GroupMatches'
 
 
-const TournamentHub = () => {
+const Dashboard = () => {
   const { tournamentId } = useParams();
   console.log(tournamentId, "Tournament ID")
   const [tournamentData, setTournamentData] = useState({
@@ -21,7 +21,7 @@ const [matchData, setMatchData] = useState([]);
   //display tournament data
   useEffect(() => {
     console.log(`Fetching data for tournament ID: ${tournamentId}`);
-    axios.get(`http://localhost:8000/api/tournament-hub/${tournamentId}`)
+    axios.get(`http://localhost:8000/api/dashboard/${tournamentId}`)
     .then(res =>{ 
       const tournamentData = res.data.oneTournament;
       console.log(tournamentData, "Tournament data")
@@ -71,4 +71,4 @@ const [matchData, setMatchData] = useState([]);
 }
 
 
-export default TournamentHub
+export default Dashboard

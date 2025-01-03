@@ -1,10 +1,10 @@
 import React, { useState, useEffect} from 'react'
 import { Link } from 'react-router-dom'
 import axios from 'axios'
-import NavBar from '../components/NavBar';
+import NavBar from './NavBar';
 
 
-const Dashboard = () => {
+const AllTournaments = () => {
     const [tournamentData, setTournamentData] = useState([]);
 
     useEffect(() => {
@@ -32,4 +32,4 @@ const Dashboard = () => {
   )
 }
 
-export default Dashboard
+export default AllTournaments

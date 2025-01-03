@@ -1,7 +1,7 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 
-const LandingPage = () => {
+const HomePage = () => {
   return (
     <div>
         <h1>Welcome to the Tournament Manager</h1>
@@ -13,4 +13,4 @@ const LandingPage = () => {
   )
 }
 
-export default LandingPage
+export default HomePage

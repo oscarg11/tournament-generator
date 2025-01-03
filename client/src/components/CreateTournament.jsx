@@ -1,9 +1,9 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios'
-import NavBar from '../components/NavBar';
+import NavBar from './NavBar';
 
-const TournamentForm = () => {
+const CreateTournament = () => {
   const [tournamentData, setTournamentData] = useState({
     tournamentName: '',
     format: '',
@@ -50,13 +50,22 @@ const TournamentForm = () => {
       setErrors(localErrors);
       return;
     }
-      setTournamentData({
-        ...tournamentData,
-        participants: [...tournamentData.participants, currentParticipant]
-      });
-      // Clears the current participant
+    // Save participant to the database
+    axios.post('http://localhost:8000/api/participants/create-participant', currentParticipant)
+    .then(res => {
+      const participantId = res.data.participant._id;
+
+      // Add only the participant ID to tournamentData
+      setTournamentData(prevData => ({
+        ...prevData,
+        participants: [...prevData.participants, participantId]
+      }));
+      
+      // Clear current participant form
       setCurrentParticipant({ participantName: '', teamName: '' });
-      setErrors({}); // Clear any errors
+    })
+    .catch(err => console.error('Error adding participant:', err));
+
     };
   
 
@@ -256,4 +265,4 @@ const TournamentForm = () => {
   )
 }
 
-export default TournamentForm;
+export default CreateTournament;
