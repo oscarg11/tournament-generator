@@ -1,4 +1,4 @@
-const { Tournament, Match, Participant }= require("../models/tournament.model");
+const { Tournament, Match}= require("../models/tournament.model");
 
 
 //find all tournaments
@@ -20,16 +20,24 @@ module.exports.findOneTournament = (req,res) => {
 }
 
 //create a tournament
-module.exports.createTournament = (req, res) => {
-    Tournament.create(req.body)
-        .then(newTournament => {
-            console.log("NEW TOURNAMENT CREATED SUCCESSFULLY!");
-            res.json({ tournament: newTournament });
-        })
-        .catch(err => {
-            console.error('Error:', err);
-            res.status(500).json({ message: "Something went wrong IN CREATE_TOURNAMENT", error: err });
+module.exports.createTournament = async (req, res) => {
+    try {
+        const { tournamentName, format, numberOfGroupStageLegs, numberOfParticipants, participants } = req.body;
+
+        const newTournament = await Tournament.create({
+            tournamentName,
+            format,
+            numberOfGroupStageLegs,
+            numberOfParticipants,
+            participants
         });
+
+        console.log("NEW TOURNAMENT CREATED SUCCESSFULLY!");
+        res.json({ tournament: newTournament });
+    } catch (err) {
+        console.error('Error:', err);
+        res.status(500).json({ message: "Something went wrong in creating tournament", error: err });
+    }
 }
 
 //update or edit tournament
@@ -60,31 +68,39 @@ module.exports.deleteTournament = (req, res) => {
         });
 }
 
-//save matches to db
+
 module.exports.saveMatches = async (req, res) => {
     try {
-        const { id} = req.params;
-        const { matches } = req.body;
+        const { id } = req.params; // Tournament ID
+        const { matches } = req.body; // Array of matches
 
+        // Validate matches input
+        if (!Array.isArray(matches) || matches.length === 0) {
+            return res.status(400).json({ message: "Matches must be a non-empty array." });
+        }
+
+        // Insert matches into the database
         const matchInstances = await Match.insertMany(matches);
         const matchIds = matchInstances.map(match => match._id);
-    
-    //find the tournament by ID
-    const tournament = await Tournament.findByIdAndUpdate(
-        id,
-        { $set: { matches: {$each: matchIds} }},
-        { new: true, runValidators: true }
-    );
 
-    if(!tournament){
-        return res.status(404).json({ message: "Tournament not found!"});
-    }
-    res.json({ success: true, tournament: tournament, message: "Matches added successfully!"});
-    }catch(err){
-        console.error('Error:', err);
+        // Update the tournament with the new match IDs
+        const tournament = await Tournament.findByIdAndUpdate(
+            id,
+            { $push: { matches: { $each: matchIds } } }, // Append match IDs
+            { new: true, runValidators: true }
+        );
+
+        if (!tournament) {
+            return res.status(404).json({ message: "Tournament not found!" });
+        }
+
+        res.json({ success: true, tournament, message: "Matches added successfully!" });
+    } catch (err) {
+        console.error("Error saving matches:", err);
         res.status(500).json({ message: "Something went wrong", error: err });
     }
-}
+};
+
 
 // Load tournament data with populated participants and matches
 module.exports.loadTournamentData = async (req, res) => {
