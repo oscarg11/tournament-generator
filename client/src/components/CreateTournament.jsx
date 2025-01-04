@@ -53,12 +53,12 @@ const CreateTournament = () => {
     // Save participant to the database
     axios.post('http://localhost:8000/api/participants/create-participant', currentParticipant)
     .then(res => {
-      const participantId = res.data.participant._id;
+      const participant = res.data.participant;
 
-      // Add only the participant ID to tournamentData
+      // Add participant object to the tournament data
       setTournamentData(prevData => ({
         ...prevData,
-        participants: [...prevData.participants, participantId]
+        participants: [...prevData.participants, participant]
       }));
       
       // Clear current participant form
@@ -71,10 +71,10 @@ const CreateTournament = () => {
 
   // Delete participant
   const handleDeleteParticipant = index => {
-    setTournamentData({
-      ...tournamentData,
-      participants: tournamentData.participants.filter((_, i) => i !== index)
-    });
+    setTournamentData(prevData => ({
+      ...prevData,
+      participants: prevData.participants.filter((_, i) => i !== index)
+    }));
   };
 
 
@@ -107,7 +107,7 @@ const CreateTournament = () => {
         });
        // const tournamentId = res.data._id;
        // navigate(`/group-stage/${tournamentId}`);
-      navigate('/dashboard');
+      navigate('/all-tournaments');
         setErrors({});
       })
       .catch(err => {
@@ -125,6 +125,7 @@ const CreateTournament = () => {
 
 
   return (
+    // create tournament form
     <div className='container-fluid'>
       <NavBar />
       <div className='container py-5'>
@@ -239,8 +240,8 @@ const CreateTournament = () => {
               <h3>Participants to Add:</h3>
               {/* Incomplete participants validtation message */}
               {errors.incommpleteParticipants && <p className="text-danger">{errors.incommpleteParticipants}</p>}
-              <ol  style={{ listStylePosition: 'inside' }}>
 
+              <ol  style={{ listStylePosition: 'inside' }}>
               {tournamentData.participants.map((participant, index) => (
               <li key={index} style={{ marginBottom: '10px', color: 'black' }}>
                 {/* Display the participant's name and team name */}

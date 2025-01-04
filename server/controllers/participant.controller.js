@@ -1,5 +1,4 @@
-const Participant = require("../models/tournament.model");
-
+const {Participant} = require("../models/tournament.model");
 module.exports.createParticipant = async (req, res) => {
     try{
         const participant = await Participant.create(req.body);

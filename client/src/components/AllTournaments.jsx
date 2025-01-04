@@ -23,7 +23,7 @@ const AllTournaments = () => {
         <ul>
             {tournamentData.map(tournament => (
                 <li key={tournament._id}>
-                    <Link to={`/tournament-hub/${tournament._id}`}>{tournament.tournamentName}</Link>
+                    <Link to={`/dashboard/${tournament._id}`}>{tournament.tournamentName}</Link>
                 </li>
             ))}
         </ul>
