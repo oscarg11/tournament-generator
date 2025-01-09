@@ -1,56 +1,20 @@
 import React, {useState, useEffect} from 'react'
-import { determineMatchResult, saveMatches } from '../helpers/tournamentUtills';
+import {shuffle,
+        createGroups,
+        determineMatchResult,
+        saveMatches } from '../helpers/tournamentUtills';
 import axios from 'axios'
 
 const GroupMatches = ({tournamentData, setTournamentData}) => {
     const [matchData, setMatchData] = useState([]);
 
-let lastGroup = ''; //keep track of the last group to compare with the current group
-
- //SHUFFLE PLAYERS FUNCTION
-const shuffle = (array) => {
-    for (let i = array.length - 1; i > 0; i--){
-        //generate random index from 0 to i
-        const j = Math.floor(Math.random() * (i + 1));
-        //then swap random index (j) with current index (i)
-        [array[i], array[j]] = [array[j], array[i]];
-    }
-}
-
-//CREATE GROUPS
-const createGroups = (participants) => {
-    let groups = [];
-    // if there are exatcly 4 participants, create one group
-    if (participants.length === 4){
-      groups.push(participants);
-    }else{
-      // if there are more than 4 participants, create multiple groups of 4
-      const groupCount = participants.length / 4;
-      for (let i = 0; i < groupCount; i++){
-        // use slice to get 4 participants at a timeå
-        groups.push(participants.slice(i * 4, (i + 1) * 4));
-      }
-    }
-    console.log(groups, "Groups")
-    return groups;
-}
-
 // onChange handler
-const onChangeHandler = (e, roundIndex, matchIndex, participantNumber) => {
-  //create a copy of the match data
+const onChangeHandler = (e, roundIndex, matchIndex, participantIndex) => {
   const updatedMatches = [...matchData];
+  updatedMatches[roundIndex][matchIndex].participants[participantIndex].score = parseInt(e.target.value) || 0;
+  setMatchData(updatedMatches);
+};
 
-  //get current match to be updated
-  const matchToUpdate = matchData[roundIndex][matchIndex];
-
-  //update the correct paticipants score
-  if (participantNumber === 1){
-    matchToUpdate.scores.participant1Score = parseInt(e.target.value);
-} else if (participantNumber === 2){
-    matchToUpdate.scores.participant2Score = parseInt(e.target.value);
-}
-  setMatchData(updatedMatches)
-}
 
 //handle score submit
 const handleScoreSubmit = (e, tournmanentId, roundIndex, matchIndex) =>{
@@ -78,6 +42,9 @@ const handleScoreSubmit = (e, tournmanentId, roundIndex, matchIndex) =>{
 
 //generate matches
 useEffect(() => {
+  console.log("Match Data before generation:", matchData);
+  console.log("Tournament Participants before generation:", tournamentData.participants);
+
   // Generate matches by pairing participants in each group for multiple rounds
   const createGroupStageMatches = (groups) => {
     if (!groups || groups.length === 0) {
@@ -135,6 +102,7 @@ useEffect(() => {
     }
 
    // Shuffle participants, create groups, and generate matches
+    console.log("TOURNAMENT DATA!!:", tournamentData);
     console.log(`Creating matches for groups ${tournamentData.group}`);
     if (tournamentData.participants && tournamentData.participants.length > 0){
       //shuffle participants in each group
@@ -156,6 +124,9 @@ useEffect(() => {
   }
 }
 }, [
+  tournamentData._id,
+  tournamentData.format,
+  tournamentData.group,
   tournamentData.numberOfGroupStageLegs,
   tournamentData.participants,
 ]);
@@ -188,7 +159,9 @@ return (
                         <div className='card-body d-flex'>
                           {/* participant 1 */}
                           <label className='me-2'>
-                            {match.participant1.participantName}
+                            {tournamentData.participants.find(
+                              (participant) => participant._id === match.participants[0]?.participantId
+                            )?.participantName}
                           </label>
 
                           {/* score input for participant1 */}
@@ -198,7 +171,7 @@ return (
                               style={{width: "60px"}}
                               min='0'
                               max='100'
-                              value={match.scores.participant1Score}
+                              value={match.participants[0]?.score || 0}
                               onChange={(e) => onChangeHandler(e, roundIndex, matchIndex, 1)}
                               >
                           </input>
@@ -212,14 +185,16 @@ return (
                               style={{width: "60px"}}
                               min='0'
                               max='100'
-                              value={match.scores.participant2Score}
+                              value={match.participants[1]?.score || 0}
                               onChange={(e) => onChangeHandler(e, roundIndex, matchIndex, 2)}
                               >
                           </input>
 
                           {/* participant 2 */}
                           <label className='ms-2'>
-                            {match.participant2.participantName}
+                          {tournamentData.participants.find(
+                              (participant) => participant._id === match.participants[1]?.participantId
+                            )?.participantName}
                           </label>
                         </div>
                         {/* submit scores button */}

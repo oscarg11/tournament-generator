@@ -105,8 +105,6 @@ const CreateTournament = () => {
           numberOfParticipants: '',
           participants: []
         });
-       // const tournamentId = res.data._id;
-       // navigate(`/group-stage/${tournamentId}`);
       navigate('/all-tournaments');
         setErrors({});
       })
@@ -126,8 +124,9 @@ const CreateTournament = () => {
 
   return (
     // create tournament form
+    <div>
+    <NavBar />
     <div className='container-fluid'>
-      <NavBar />
       <div className='container py-5'>
         <h1>Create your Tournament!</h1>
         <form action="" className="row" onSubmit={ handleSubmit }>
@@ -263,6 +262,7 @@ const CreateTournament = () => {
         </form>
       </div>
     </div>
+  </div>
   )
 }
 
