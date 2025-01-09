@@ -24,9 +24,7 @@ const [matchData, setMatchData] = useState([]);
     axios.get(`http://localhost:8000/api/dashboard/${tournamentId}`)
     .then(res =>{ 
       const tournamentData = res.data.oneTournament;
-      console.log(res.data, "API Response");
 
-      console.log(tournamentData, "Tournament data")
       //if group stage and knockout format
       if (tournamentData.format === 'groupAndKnockout'){
         setTournamentData(tournamentData)
