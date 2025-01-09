@@ -2,42 +2,14 @@ import axios from "axios";
 
 
 export const loadTournamentData = async (tournamentId) => {
-    try {
-        const response = await axios.get(`http://localhost:8000/api/tournament-hub/${tournamentId}`);
-        return response.data.oneTournament;  // Replace `oneTournament` if your API returns something different
-    } catch (err) {
-        console.error("Error loading tournament data:", err);
-        throw err;
-    }
+  try {
+    const response = await axios.get(`http://localhost:8000/api/tournament-hub/${tournamentId}`);
+    return response.data.oneTournament;  // Replace `oneTournament` if your API returns something different
+  } catch (err) {
+    console.error("Error loading tournament data:", err);
+    throw err;
+  }
 };
-
-//SHUFFLE PLAYERS FUNCTION
-export const shuffle = (array) => {
-    for (let i = array.length - 1; i > 0; i--){
-        //generate random index from 0 to i
-        const j = Math.floor(Math.random() * (i + 1));
-        //then swap random index (j) with current index (i)
-        [array[i], array[j]] = [array[j], array[i]];
-    }
-}
-
-//CREATE GROUPS
-export const createGroups = (participants) => {
-let groups = [];
-// if there are exatcly 4 participants, create one group
-if (participants.length === 4){
-    groups.push(participants);
-}else{
-    // if there are more than 4 participants, create multiple groups of 4
-    const groupCount = participants.length / 4;
-    for (let i = 0; i < groupCount; i++){
-    // use slice to get 4 participants at a timeå
-    groups.push(participants.slice(i * 4, (i + 1) * 4));
-    }
-}
-console.log(groups, "Groups")
-return groups;
-}
 
 
 //determin match result
