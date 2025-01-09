@@ -1,9 +1,7 @@
 import React from 'react'
-import { useNavigate, Link } from 'react-router-dom'
-import axios from 'axios'
+import {  Link } from 'react-router-dom'
 
 const NavBar = () => {
-    const navigate = useNavigate();
 
   return (
     <div>
@@ -19,7 +17,7 @@ const NavBar = () => {
                             <Link className="nav-link" to="/">Home</Link>
                         </li>
                         <li className="nav-item">
-                            <Link className="nav-link" to="/tournaments">Tournaments</Link>
+                            <Link className="nav-link" to="/all-tournaments">Tournaments</Link>
                         </li>
                         <li className="nav-item">
                             <Link className="nav-link" to="/create-tournament">Create Tournament</Link>
