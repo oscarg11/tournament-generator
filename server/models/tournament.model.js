@@ -33,7 +33,7 @@ const MatchSchema = new mongoose.Schema({
         }
     ],
     matchNumber : {type: Number, required: true },
-    group: { type: String, required: true },
+    group: { type: String},
     round: {type: Number, required: true },
     startTime: { type: Date, default: Date.now },
     endTime: { type: Date, default: Date.now },
@@ -63,6 +63,12 @@ const TournamentSchema = new mongoose.Schema({
     },
     participants: [
         { type: mongoose.Schema.Types.ObjectId, ref: 'Participant' }
+    ],
+    groups: [
+        {
+            groupName: { type: String, required: true },
+            participants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Participant' }]
+        }
     ],
     matches: [
         { type: mongoose.Schema.Types.ObjectId, ref: 'Match' }
