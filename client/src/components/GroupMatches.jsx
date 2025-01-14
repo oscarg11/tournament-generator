@@ -1,6 +1,7 @@
 import React, {useState, useEffect} from 'react'
 import {shuffle,
         createGroups,
+        createGroupStageMatches,
         determineMatchResult,
         saveMatches } from '../helpers/tournamentUtills';
 import axios from 'axios'
@@ -42,95 +43,35 @@ const handleScoreSubmit = (e, tournmanentId, roundIndex, matchIndex) =>{
 
 //generate matches
 useEffect(() => {
-  console.log("Match Data before generation:", matchData);
-  console.log("Tournament Participants before generation:", tournamentData.participants);
-
-  // Generate matches by pairing participants in each group for multiple rounds
-  const createGroupStageMatches = (groups) => {
-    if (!groups || groups.length === 0) {
-      console.warn("Groups data is undefined or empty. Cannot generate matches.");
-      return []; // Return an empty array if groups are invalid
-    }
-
-    let rounds = [];
-    //loop through each group
-    groups.forEach((group, groupIndex) => {
-    console.log("Current group participants:", group);
-    const numOfParticipants = group.length;
-    const totalRounds = tournamentData.numberOfGroupStageLegs === 1
-    ? numOfParticipants - 1
-    : 2 * (numOfParticipants - 1);  //if there are 2 legs, then the total number of rounds will be 2 * (numOfParticipants - 1)
-    
-    //create empty arrays for each round
-    for(let i = 0; i <totalRounds; i++){
-      rounds.push([])
-    }
-    let roundIndex = 0;
-    
-    //loop through each leg of the group stage
-    for(let leg = 1; leg <= tournamentData.numberOfGroupStageLegs; leg++) {
-      for( let round = 0; round < numOfParticipants -1; round++){ //loop through each participant in the group
-          // pair players for the current round
-          for(let i =0; i < group.length / 2; i++){
-            const participant1 = group[i]._id; //get participants by id
-            const participant2 = group[group.length - 1 - i]._id; 
-    
-          //match object
-          const match = {
-            participants: [
-              { participantId: participant1, score: 0},
-              { participantId: participant2, score: 0}
-            ],
-            matchNumber: `${i}-${group.length - 1}`,
-            group: String.fromCharCode(65 + groupIndex), //convert group index to letter
-            round: roundIndex,
-          }
-          //assign the match to the correct round
-          rounds[roundIndex % totalRounds].push(match);
-        }
-          //increment the round index to move to the next round
-          roundIndex++;
-    
-          //rotate the participants in the group array
-          group.splice(1, 0, group.pop());
-      }
-    }
-    });
-    console.log("Groups in current Tournament:", groups);
-    console.log("number of rounds", rounds)
-    return rounds;
-    }
 
    // Shuffle participants, create groups, and generate matches
-    console.log("TOURNAMENT DATA!!:", tournamentData);
-    console.log(`Creating matches for groups ${tournamentData.group}`);
-    if (tournamentData.participants && tournamentData.participants.length > 0){
-      //shuffle participants in each group
-      const shuffledParticipants = [...tournamentData.participants];
-      shuffle(shuffledParticipants);
-      //create groups
-      const groups = createGroups(shuffledParticipants);
+   if (tournamentData.participants && tournamentData.participants.length > 0){
+     //shuffle participants in each group
+     const shuffledParticipants = [...tournamentData.participants];
+     shuffle(shuffledParticipants);
+     //create groups
+     const groups = createGroups(shuffledParticipants);
       //generate matches
-
+      console.log("Groups", groups)
       if (groups && groups.length > 0){
-        const generatedMatches = createGroupStageMatches(groups);
-        console.log(generatedMatches, "Generated Matches")
+        const generatedMatches = createGroupStageMatches(groups, tournamentData.numberOfGroupStageLegs);
         setMatchData(generatedMatches);
-
+        console.log("Match Data", matchData)
+        
         //save matches to the database
         saveMatches(tournamentData._id, generatedMatches)
-          .then(() => console.log("Matches saved successfully"))
-          .catch(err => console.log("Error saving matches", err));
-  }
-}
-}, [
-  tournamentData._id,
-  tournamentData.format,
-  tournamentData.group,
-  tournamentData.numberOfGroupStageLegs,
-  tournamentData.participants,
-]);
+        .then(() => console.log("Matches saved successfully"))
+        .catch(err => console.log("Error saving matches", err));
+      }
+    }
+  }, [
+    tournamentData.groups,
+    tournamentData.participants,
+    tournamentData._id,
+    tournamentData.numberOfGroupStageLegs
 
+  ]);
+  
 
 return (
     <div>
