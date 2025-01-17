@@ -1,3 +1,5 @@
+import { shuffle, createGroups } from "../helpers/tournamentUtils";
+
 const { Tournament, Match}= require("../models/tournament.model");
 
 
@@ -24,12 +26,17 @@ module.exports.createTournament = async (req, res) => {
     try {
         const { tournamentName, format, numberOfGroupStageLegs, numberOfParticipants, participants } = req.body;
 
+        const shuffledParticipants = shuffle([...participants]);
+        const groups = createGroups(shuffledParticipants);
+        console.log("Groups", groups);
+
         const newTournament = await Tournament.create({
             tournamentName,
             format,
             numberOfGroupStageLegs,
             numberOfParticipants,
-            participants
+            participants,
+            groups
         });
 
         console.log("NEW TOURNAMENT CREATED SUCCESSFULLY!");
