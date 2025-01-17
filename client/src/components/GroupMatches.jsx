@@ -40,10 +40,9 @@ const handleScoreSubmit = (e, tournmanentId, roundIndex, matchIndex) =>{
     
 }
 
-
 //generate matches
 useEffect(() => {
-
+  console.log("Tournament Data in useEffect:", tournamentData);
    // Shuffle participants, create groups, and generate matches
    if (tournamentData.participants && tournamentData.participants.length > 0){
      //shuffle participants in each group
@@ -69,7 +68,6 @@ useEffect(() => {
     tournamentData.participants,
     tournamentData._id,
     tournamentData.numberOfGroupStageLegs
-
   ]);
   
 

@@ -48,6 +48,8 @@ export const createGroups = (participants) => {
 
 // Generate matches by pairing participants in each group for multiple rounds
 export const createGroupStageMatches = (groups, numberOfGroupStageLegs) => {
+    console.log("Groups Input:", groups);
+    console.log("Number of Group Stage Legs:", numberOfGroupStageLegs);
         if (!groups || groups.length === 0) {
         console.warn("Groups data is undefined or empty. Cannot generate matches.");
         return []; // Return an empty array if groups are invalid
