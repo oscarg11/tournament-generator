@@ -1,4 +1,4 @@
-import { shuffle, createGroups } from "../helpers/tournamentUtils";
+const { shuffle, createGroups } = require("../helpers/tournamentFunctions");
 
 const { Tournament, Match}= require("../models/tournament.model");
 
@@ -26,9 +26,22 @@ module.exports.createTournament = async (req, res) => {
     try {
         const { tournamentName, format, numberOfGroupStageLegs, numberOfParticipants, participants } = req.body;
 
+        // Shuffle participants
         const shuffledParticipants = shuffle([...participants]);
-        const groups = createGroups(shuffledParticipants);
-        console.log("Groups", groups);
+        
+        let groups = [];
+        let matches = [];
+
+        if(format === "groupAndKnockout"){
+            //generate groups
+            groups = createGroups(shuffledParticipants);
+            console.log("Groups created:", groups);
+
+            //generate matches
+            matches = createGroupStageMatches(groups, numberOfGroupStageLegs);
+            console.log("Matches created:", matches);
+        }
+
 
         const newTournament = await Tournament.create({
             tournamentName,
@@ -36,8 +49,16 @@ module.exports.createTournament = async (req, res) => {
             numberOfGroupStageLegs,
             numberOfParticipants,
             participants,
-            groups
+            groups: format === "groupAndKnockout" ? groups : undefined,
         });
+
+        if (matches.length > 0) {
+            const matchInstances = await Match.insertMany(matches);
+            const matchIds = matchInstances.map((match) => match._id);
+
+            newTournament.matches = matchIds;
+            await newTournament.save();
+        }
 
         console.log("NEW TOURNAMENT CREATED SUCCESSFULLY!");
         res.json({ tournament: newTournament });
