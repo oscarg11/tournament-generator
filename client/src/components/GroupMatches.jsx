@@ -1,9 +1,4 @@
 import React, {useState, useEffect} from 'react'
-import {shuffle,
-        createGroups,
-        createGroupStageMatches,
-        determineMatchResult,
-        saveMatches } from '../helpers/tournamentUtills';
 import axios from 'axios'
 
 const GroupMatches = ({tournamentData, setTournamentData}) => {
@@ -25,8 +20,6 @@ const handleScoreSubmit = (e, tournmanentId, roundIndex, matchIndex) =>{
     const updatedMatchData = [...matchData];
     const matchToSubmit = updatedMatchData[roundIndex][matchIndex];
 
-    //call determineMatchResult function to determine the result of the match
-    determineMatchResult(matchToSubmit)
 
     //update backend with the new match data
     axios.put(`http://localhost:8000/api/tournaments/${tournamentData._id}/matches/${roundIndex}/${matchIndex}`, matchToSubmit)
@@ -40,36 +33,24 @@ const handleScoreSubmit = (e, tournmanentId, roundIndex, matchIndex) =>{
     
 }
 
-//generate matches
 useEffect(() => {
-  console.log("Tournament Data in useEffect:", tournamentData);
-   // Shuffle participants, create groups, and generate matches
-   if (tournamentData.participants && tournamentData.participants.length > 0){
-     //shuffle participants in each group
-     const shuffledParticipants = [...tournamentData.participants];
-     shuffle(shuffledParticipants);
-     //create groups
-     const groups = createGroups(shuffledParticipants);
-      //generate matches
-      console.log("Groups", groups)
-      if (groups && groups.length > 0){
-        const generatedMatches = createGroupStageMatches(groups, tournamentData.numberOfGroupStageLegs);
-        setMatchData(generatedMatches);
-        console.log("Match Data", matchData)
-        
-        //save matches to the database
-        saveMatches(tournamentData._id, generatedMatches)
-        .then(() => console.log("Matches saved successfully"))
-        .catch(err => console.log("Error saving matches", err));
-      }
+  const fetchGroupMatches = async () => {
+    try {
+      console.log("Fetching group matches for tournament:", tournamentData._id);
+
+      const response = await axios.get(`http://localhost:8000/api/tournaments/${tournamentData._id}/matches`);
+      console.log("Fetched group matches:", response.data.matches);
+
+      setMatchData(response.data.matches);
+    } catch (err) {
+      console.error("Error fetching group matches:", err);
     }
-  }, [
-    tournamentData.groups,
-    tournamentData.participants,
-    tournamentData._id,
-    tournamentData.numberOfGroupStageLegs
-  ]);
-  
+
+    if(tournamentData._id){
+      fetchGroupMatches();
+    }
+  }
+}, [tournamentData._id]);
 
 return (
     <div>
