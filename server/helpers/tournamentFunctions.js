@@ -11,7 +11,7 @@ const shuffle = (array) => {
 //CREATE GROUPS
 const createGroups = (participants) => {
     let groups = [];
-
+    console.log("participants: ",participants)
     // if there are exatcly 4 participants, create one group
     if (participants.length === 4) {
         groups.push({
