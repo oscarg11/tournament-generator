@@ -39,34 +39,30 @@ const CreateTournament = () => {
   // Add participant & validation
   const handleAddParticipant = () => {
     let localErrors = {};
+  
     if (!currentParticipant.participantName || currentParticipant.participantName.length < 2) {
       localErrors.participantName = { message: "A name is required and must be at least 2 characters." };
     }
     if (!currentParticipant.teamName || currentParticipant.teamName.length < 2) {
       localErrors.teamName = { message: "Team name is required and must be at least 2 characters." };
     }
-    //If there are errors, set them and return
+  
+    // If there are errors, set them and return
     if (Object.keys(localErrors).length > 0) {
       setErrors(localErrors);
       return;
     }
-    // Save participant to the database
-    axios.post('http://localhost:8000/api/participants/create-participant', currentParticipant)
-    .then(res => {
-      const participant = res.data.participant;
-
-      // Add participant object to the tournament data
-      setTournamentData(prevData => ({
-        ...prevData,
-        participants: [...prevData.participants, participant]
-      }));
-      
-      // Clear current participant form
-      setCurrentParticipant({ participantName: '', teamName: '' });
-    })
-    .catch(err => console.error('Error adding participant:', err));
-
-    };
+  
+    // Add participant locally to the tournamentData object
+    setTournamentData(prevData => ({
+      ...prevData,
+      participants: [...prevData.participants, currentParticipant],
+    }));
+  
+    // Clear current participant form
+    setCurrentParticipant({ participantName: '', teamName: '' });
+  };
+  ;
   
 
   // Delete participant
@@ -84,13 +80,13 @@ const CreateTournament = () => {
     if(tournamentData.participants.length < parseInt(tournamentData.numberOfParticipants)){
       setErrors(prevErrors => ({
         ...prevErrors,
-        incommpleteParticipants: 'Please complete all participants'
+        incompleteParticipants: 'Please complete all participants'
       }))
       return;
     }else if(tournamentData.participants.length > parseInt(tournamentData.numberOfParticipants)){
       setErrors(prevErrors => ({
         ...prevErrors,
-        incommpleteParticipants: 'Too many participants'
+        incompleteParticipants: 'Too many participants'
       }))
       return;
     }

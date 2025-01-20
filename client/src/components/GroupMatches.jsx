@@ -38,7 +38,7 @@ useEffect(() => {
     try {
       console.log("Fetching group matches for tournament:", tournamentData._id);
 
-      const response = await axios.get(`http://localhost:8000/api/tournaments/${tournamentData._id}/matches`);
+      const response = await axios.get(`http://localhost:8000/api/tournaments/${tournamentData._id}/group-stage-matches`);
       console.log("Fetched group matches:", response.data.matches);
 
       setMatchData(response.data.matches);
