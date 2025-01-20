@@ -14,7 +14,7 @@ module.exports = app => {
     
     // save matches
     app.patch('/api/tournaments/:id/save-matches', TournamentController.saveMatches);
-    app.get('/api/tournaments/:id/matches', TournamentController.getGroupStageMatches);
+    app.get('/api/tournaments/:id/group-stage-matches', TournamentController.getGroupStageMatches);
     
     // update match scores
     app.put('/api/tournaments/:tournamentId/matches/:roundIndex/:matchIndex', TournamentController.updateGroupStageMatchScores);
