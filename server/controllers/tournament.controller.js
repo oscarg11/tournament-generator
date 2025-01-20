@@ -1,7 +1,61 @@
 const { shuffle, createGroups } = require("../helpers/tournamentFunctions");
 
-const { Tournament, Match}= require("../models/tournament.model");
+const { Tournament,Participant, Match}= require("../models/tournament.model");
 
+//create a tournament
+module.exports.createTournament = async (req, res) => {
+    try {
+        const { tournamentName, format, numberOfGroupStageLegs, numberOfParticipants, participants } = req.body;
+        console.log("createTournament controller",req.body);
+        
+        //save participants to the db
+        const participantInstances = await Participant.insertMany(participants);
+        const participantIds = participantInstances.map(participant => participant._id);
+        
+        console.log("Participants in createTournament before shuffle():", participants);
+        
+        // Shuffle participants
+        const shuffledParticipants = shuffle([...participants]);
+        
+        //generate groups and matches if the format is groupAndKnockout
+        let groups = [];
+        let matches = [];
+        if(format === "groupAndKnockout"){
+            //generate groups
+
+            groups = createGroups(shuffledParticipants);
+            console.log("Groups created:", groups);
+
+            //generate matches
+            matches = createGroupStageMatches(groups, numberOfGroupStageLegs);
+            console.log("Matches created:", matches);
+        }
+
+
+        const newTournament = await Tournament.create({
+            tournamentName,
+            format,
+            numberOfGroupStageLegs,
+            numberOfParticipants,
+            participants: participantIds,
+            groups: format === "groupAndKnockout" ? groups : undefined,
+        });
+
+        if (matches.length > 0) {
+            const matchInstances = await Match.insertMany(matches);
+            const matchIds = matchInstances.map((match) => match._id);
+
+            newTournament.matches = matchIds;
+            await newTournament.save();
+        }
+
+        console.log("NEW TOURNAMENT CREATED SUCCESSFULLY!");
+        res.json({ tournament: newTournament });
+    } catch (err) {
+        console.error('Error:', err);
+        res.status(500).json({ message: "Something went wrong in creating tournament", error: err });
+    }
+}
 
 //find all tournaments
 module.exports.findAllTournaments = (req, res) => {
@@ -21,52 +75,6 @@ module.exports.findOneTournament = (req,res) => {
         .catch(err => res.json({ message: "Something went wrong", error:err}));
 }
 
-//create a tournament
-module.exports.createTournament = async (req, res) => {
-    try {
-        const { tournamentName, format, numberOfGroupStageLegs, numberOfParticipants, participants } = req.body;
-
-        // Shuffle participants
-        const shuffledParticipants = shuffle([...participants]);
-        
-        let groups = [];
-        let matches = [];
-
-        if(format === "groupAndKnockout"){
-            //generate groups
-            groups = createGroups(shuffledParticipants);
-            console.log("Groups created:", groups);
-
-            //generate matches
-            matches = createGroupStageMatches(groups, numberOfGroupStageLegs);
-            console.log("Matches created:", matches);
-        }
-
-
-        const newTournament = await Tournament.create({
-            tournamentName,
-            format,
-            numberOfGroupStageLegs,
-            numberOfParticipants,
-            participants,
-            groups: format === "groupAndKnockout" ? groups : undefined,
-        });
-
-        if (matches.length > 0) {
-            const matchInstances = await Match.insertMany(matches);
-            const matchIds = matchInstances.map((match) => match._id);
-
-            newTournament.matches = matchIds;
-            await newTournament.save();
-        }
-
-        console.log("NEW TOURNAMENT CREATED SUCCESSFULLY!");
-        res.json({ tournament: newTournament });
-    } catch (err) {
-        console.error('Error:', err);
-        res.status(500).json({ message: "Something went wrong in creating tournament", error: err });
-    }
-}
 
 //update or edit tournament
 module.exports.updateTournament = (req, res) => {
@@ -94,6 +102,26 @@ module.exports.deleteTournament = (req, res) => {
             console.error('Error:', err);
             res.json({ message: "Something went wrong", error: err });
         });
+}
+
+module.exports.getGroupStageMatches = async (req, res) => {
+    try {
+        const { id } = req.params; //tournamentid
+        //find tournamennt
+        const tournament = await Tournament.findById(id).populate('matches');
+        if(!tournament){
+            return res.status(404).json({ message: "Tournament matches not found!" });
+        }
+        // filter group stage matches
+        const groupStageMatches = tournament.matches.filter(match => match.group);
+        console.log("Group Stage Matches:", groupStageMatches);
+        //return matches
+        res.json({ matches: groupStageMatches });
+
+    } catch (err) {
+        console.error("Error fetching group stage matches:", err);
+        res.status(500).json({ message: "Something went wrong", error: err });
+    }
 }
 
 
