@@ -1,31 +1,34 @@
 //SHUFFLE PLAYERS FUNCTION
 const shuffle = (array) => {
+    console.log("Before Shuffling array:", array);
     for (let i = array.length - 1; i > 0; i--){
         //generate random index from 0 to i
         const j = Math.floor(Math.random() * (i + 1));
         //then swap random index (j) with current index (i)
         [array[i], array[j]] = [array[j], array[i]];
     }
+    console.log("After Shuffling array:", array);
+    return array;
 }
 
 //CREATE GROUPS
-const createGroups = (participants) => {
+const createGroups = (participantIds) => {
     let groups = [];
-    console.log("participants: ",participants)
+    console.log("participants: ",participantIds);
     // if there are exatcly 4 participants, create one group
-    if (participants.length === 4) {
+    if (participantIds.length === 4) {
         groups.push({
             groupName: "A",
-            participants: participants
+            participants: participantIds
         });
     } else {
         // if there are more than 4 participants, create multiple groups of 4
-        const groupCount = participants.length / 4;
+        const groupCount = participantIds.length / 4;
         for (let i = 0; i < groupCount; i++) {
             // use slice to get 4 participants at a time
             groups.push({
                 groupName: String.fromCharCode(65 + i),
-                participants: participants.slice(i * 4, (i + 1) * 4)
+                participants: participantIds.slice(i * 4, (i + 1) * 4)
             });
         }
     }
