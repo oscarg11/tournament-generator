@@ -1,4 +1,4 @@
-const { shuffle, createGroups } = require("../helpers/tournamentFunctions");
+const { shuffle, createGroups, createGroupStageMatches } = require("../helpers/tournamentFunctions");
 
 const { Tournament,Participant, Match}= require("../models/tournament.model");
 
@@ -10,18 +10,21 @@ module.exports.createTournament = async (req, res) => {
         
         //save participants to the db
         const participantInstances = await Participant.insertMany(participants);
-        const participantIds = participantInstances.map(participant => participant._id);
+        const participantIds = participantInstances.map(p => p._id);
+
+        console.log("Participant IDs:", participantIds);
         
         console.log("Participants in createTournament before shuffle():", participants);
-        
         // Shuffle participants
-        const shuffledParticipants = shuffle([...participants]);
-        
+        const shuffledParticipants = shuffle([...participantIds]);
+        console.log("Participants in createTournament AFTER shuffle():", participants);
+
         //generate groups and matches if the format is groupAndKnockout
         let groups = [];
         let matches = [];
         if(format === "groupAndKnockout"){
             //generate groups
+            console.log("Participants in controller before calling createGroups:", shuffledParticipants);
 
             groups = createGroups(shuffledParticipants);
             console.log("Groups created:", groups);
