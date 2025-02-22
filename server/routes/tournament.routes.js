@@ -2,7 +2,7 @@ const TournamentController = require("../controllers/tournament.controller")
 
 module.exports = app => {
     app.get('/api/tournaments/all-tournaments', TournamentController.findAllTournaments);
-    app.get('/api/dashboard/:_id', TournamentController.findOneTournament);
+    app.get('/api/dashboard/:id', TournamentController.findOneTournament);
     console.log("TournamentController", TournamentController)
     app.post('/api/tournaments/create-tournament', TournamentController.createTournament );
     app.patch('/api/tournaments/:id', TournamentController.updateTournament);
