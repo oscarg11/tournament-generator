@@ -14,10 +14,10 @@ module.exports.createTournament = async (req, res) => {
 
         console.log("Participant IDs:", participantIds);
         
-        console.log("Participants in createTournament before shuffle():", participants);
+        console.log("Participants in createTournament before shuffle():", participantIds);
         // Shuffle participants
         const shuffledParticipants = shuffle([...participantIds]);
-        console.log("Participants in createTournament AFTER shuffle():", participants);
+        console.log("Participants in createTournament AFTER shuffle():", participantIds);
 
         //generate groups and matches if the format is groupAndKnockout
         let groups = [];
@@ -27,14 +27,12 @@ module.exports.createTournament = async (req, res) => {
             console.log("Participants in controller before calling createGroups:", shuffledParticipants);
 
             groups = createGroups(shuffledParticipants);
-            console.log("Groups created:", groups);
-
+            
             //generate matches
             matches = createGroupStageMatches(groups, numberOfGroupStageLegs);
-            console.log("Matches created:", matches);
         }
-
-
+        
+        
         const newTournament = await Tournament.create({
             tournamentName,
             format,
@@ -43,16 +41,18 @@ module.exports.createTournament = async (req, res) => {
             participants: participantIds,
             groups: format === "groupAndKnockout" ? groups : undefined,
         });
-
+        
         if (matches.length > 0) {
             const matchInstances = await Match.insertMany(matches);
             const matchIds = matchInstances.map((match) => match._id);
-
+            
             newTournament.matches = matchIds;
             await newTournament.save();
         }
-
+        
         console.log("NEW TOURNAMENT CREATED SUCCESSFULLY!");
+        console.log("Groups created:", groups);
+        console.log("Matches created:", matches);
         res.json({ tournament: newTournament });
     } catch (err) {
         console.error('Error:', err);
@@ -61,21 +61,50 @@ module.exports.createTournament = async (req, res) => {
 }
 
 //find all tournaments
-module.exports.findAllTournaments = (req, res) => {
-    Tournament.find()
-        .populate('participants')
-        .populate('matches')
-        .then(allTournaments => res.json({ tournaments: allTournaments}))
-        .catch(err => res.json({ messsage: "Something went wrong", error: err}))
+module.exports.findAllTournaments = async (req, res) => {
+    try {
+        const Alltournaments = await Tournament.find()
+            .populate('participants')
+            .populate('matches');
+            
+        //populate groups with participants
+        for (let tournament of Alltournaments) {
+            if (tournament.groups && tournament.groups.length > 0) {
+                for (let group of tournament.groups) {
+                    group.participants = await Participant.find({ _id: { $in: group.participants } });
+                }
+            }
+        }
+        res.json(Alltournaments);
+    } catch (err){
+        console.error('Error:', err);
+        res.status(500).json({ message: "Something went wrong", error: err });
+        
+    }
 }
 
 //find one tournament
-module.exports.findOneTournament = (req,res) => {
-    Tournament.findById(req.params._id)
-        .populate('participants')
-        .populate('matches')
-        .then(oneTournament => res.json({ oneTournament: oneTournament}))
-        .catch(err => res.json({ message: "Something went wrong", error:err}));
+module.exports.findOneTournament = async (req,res) => {
+    try {
+        const tournament = await Tournament.findById(req.params.id)
+            .populate('participants')
+            .populate('matches');
+            
+        if(!tournament){
+            return res.status(404).json({ message: "Tournament not found!" });
+        }
+        //populate groups with participants
+        if(tournament.groups && tournament.groups.length > 0){
+            for(let group of tournament.groups){
+                group.participants = await Participant.find({ _id: { $in: group.participants } });
+            }
+        }
+        res.json( {oneTournament: tournament} );
+    } catch (err){
+        console.error('Error:', err);
+        res.status(500).json({ message: "Something went wrong", error: err });
+        
+    }
 }
 
 
