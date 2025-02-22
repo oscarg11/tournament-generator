@@ -20,8 +20,10 @@ const [matchData, setMatchData] = useState([]);
 
   //display tournament data
   useEffect(() => {
+    console.log("Fetching tournament with ID:", tournamentId);
     axios.get(`http://localhost:8000/api/dashboard/${tournamentId}`)
     .then(res =>{ 
+      console.log("API Response (Dashboard):", res.data);
       const tournamentData = res.data.oneTournament;
 
       //if group stage and knockout format
@@ -59,6 +61,7 @@ const [matchData, setMatchData] = useState([]);
         <GroupStandings groups={tournamentData.groups}/>
   
         {/* Group match fixtures component */}
+        
         <GroupMatches
           tournamentData={tournamentData}
           setTournamentData={setTournamentData}
