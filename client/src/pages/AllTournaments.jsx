@@ -10,11 +10,12 @@ const AllTournaments = () => {
     useEffect(() => {
         axios.get("http://localhost:8000/api/tournaments/all-tournaments")
         .then(res => {
-            console.log(res.data, "All Tournaments")
-            setTournamentData(res.data.tournaments)
+            
+            setTournamentData(res.data|| [])
         })
         .catch(err => console.log("Failed to fetch tournaments", err))
     }, []);
+    console.log("ALL TOURNAMENTS: ",tournamentData)
 
 return (
     <div>
