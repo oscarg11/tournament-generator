@@ -14,7 +14,6 @@ const shuffle = (array) => {
 //CREATE GROUPS
 const createGroups = (participantIds) => {
     let groups = [];
-    console.log("participants: ",participantIds);
     // if there are exatcly 4 participants, create one group
     if (participantIds.length === 4) {
         groups.push({
@@ -32,67 +31,107 @@ const createGroups = (participantIds) => {
             });
         }
     }
-    console.log("Groups", groups);
+    console.log("CREATEGROUPS FUNCTION OUTPUT:", groups);
     return groups;
 };
 
 // Generate matches by pairing participants in each group for multiple rounds
 const createGroupStageMatches = (groups, numberOfGroupStageLegs) => {
-    console.log("Groups Input:", groups);
+    console.log("Groups Input in createGroupStageMatches:", JSON.stringify(groups, null, 2));
     console.log("Number of Group Stage Legs:", numberOfGroupStageLegs);
-        if (!groups || groups.length === 0) {
-        console.warn("Groups data is undefined or empty. Cannot generate matches.");
-        return []; // Return an empty array if groups are invalid
-        }
 
-        let rounds = [];
-        //loop through each group
-        groups.forEach((group, groupIndex) => {
-        console.log("Current group participants:", group);
-        const numOfParticipants = group.length;
-        const totalRounds = numberOfGroupStageLegs === 1
-        ? numOfParticipants - 1
-        : 2 * (numOfParticipants - 1);  //if there are 2 legs, then the total number of rounds will be 2 * (numOfParticipants - 1)
-        
-        //create empty arrays for each round
-        for(let i = 0; i <totalRounds; i++){
-        rounds.push([])
+    if (!groups || groups.length === 0) {
+        console.warn("Groups data is undefined or empty. Cannot generate matches.");
+        return [];
+    }
+    let allRounds = [];
+
+    const matches = allRounds.flat(); // Ensure matches is a flat array
+
+    let matchCount = 1;
+
+
+    groups.forEach((group) => {
+        console.log(`Processing Group ${group.groupName}`);
+        if (!group.participants || group.participants.length === 0) {
+            console.warn(`No participants in group ${group.groupName}`);
+            return;
         }
-        let roundIndex = 0;
-        
-        //loop through each leg of the group stage
-        for(let leg = 1; leg <= numberOfGroupStageLegs; leg++) {
-        for( let round = 0; round < numOfParticipants -1; round++){ //loop through each participant in the group
-            // pair players for the current round
-            for(let i =0; i < group.length / 2; i++){
-                const participant1 = group[i]._id; //get participants by id
-                const participant2 = group[group.length - 1 - i]._id; 
-        
-            //match object
-            const match = {
-                participants: [
-                { participantId: participant1, score: 0},
-                { participantId: participant2, score: 0}
-                ],
-                matchNumber: `${i}-${group.length - 1}`,
-                group: groups.groupName,
-                round: roundIndex,
+        const numOfParticipants = group.participants.length;
+        const totalRounds = numberOfGroupStageLegs * (numOfParticipants - 1); // Total matches = (n-1) * legs
+        console.log(`Total Rounds for Group ${group.groupName}:`, totalRounds);
+        const rounds = Array.from({ length: totalRounds }, () => []); // Initialize rounds for the group
+        console.log(`Initialized Rounds for Group ${group.groupName}:`, JSON.stringify(rounds, null, 2));
+
+        let rotatedParticipants = [...group.participants];
+        console.log(`Initial Participants for Group ${group.groupName}:`, rotatedParticipants);
+
+        for (let leg = 1; leg <= numberOfGroupStageLegs; leg++) {
+            for (let round = 0; round < numOfParticipants - 1; round++) {
+                console.log(`Creating Matches for Round ${round}, Leg ${leg}`);
+                for (let i = 0; i < Math.floor(numOfParticipants / 2); i++) {
+                    const participant1 = rotatedParticipants[i];
+                    const participant2 = rotatedParticipants[rotatedParticipants.length - 1 - i];
+
+                    if (!participant1 || !participant2) {
+                        console.error("Undefined participant detected:", { participant1, participant2 });
+                        continue;
+                    }
+
+                    const match = {
+                        participants: [
+                            { participantId: participant1, score: 0 },
+                            { participantId: participant2, score: 0 },
+                        ],
+                        matchNumber: matchCount++,
+                        group: group.groupName,
+                        round,
+                    };
+
+                     // Validate match
+                     matches.forEach((match) => {
+                        if (!match.round || !match.matchNumber) {
+                            console.error("Invalid match detected before saving:", match);
+                        }
+                    });
+                    
+
+                    console.log("Created Match:", match);
+                    rounds[round].push(match);
+
+                }
+
+                // Rotate participants
+                console.log(`Before Rotation (Round ${round}):`, JSON.stringify(rotatedParticipants));
+                rotatedParticipants = [
+                    rotatedParticipants[0],
+                    ...rotatedParticipants.slice(-1),
+                    ...rotatedParticipants.slice(1, -1),
+                ];
+                console.log(`After Rotation (Round ${round}):`, JSON.stringify(rotatedParticipants));
             }
-            //assign the match to the correct round
-            rounds[roundIndex % totalRounds].push(match);
-            }
-            //increment the round index to move to the next round
-            roundIndex++;
-        
-            //rotate the participants in the group array
-            group.splice(1, 0, group.pop());
         }
+        console.log(`Final Rounds for Group ${group.groupName}:`, JSON.stringify(rounds, null, 2));
+        allRounds.push(...rounds); // Add group rounds to global rounds
+    });
+
+
+    console.log("Flattened Matches:", matches);
+
+    matches.forEach((match, index) => {
+        if (!match.round && match.round !== 0) {
+            console.error(`Match at index ${index} is missing 'round':`, match);
         }
-        });
-        console.log("Groups in current Tournament:", groups);
-        console.log("number of rounds", rounds)
-        return rounds;
+        if (!match.matchNumber) {
+            console.error(`Match at index ${index} is missing 'matchNumber':`, match);
         }
+    });
+
+    console.log("Matches Ready for Saving:", JSON.stringify(matches, null, 2));
+    return matches; // Or save the matches directly here
+};
+
+
 
 
 
@@ -142,25 +181,11 @@ const determineMatchResult = (participant1, participant2, score,match) => {
         return {participant1, participant2}
 }
 
-//save matches to the database
-const saveMatches = async (tournamentId, matches) => {
-    try {
-        const response = await axios.post(
-            `http://localhost:8000/api/tournaments/${tournamentId}/save-matches`,
-            { matches }
-        );
-        console.log("Matches saved successfully", response.data);
-        return response.data;
-    } catch (err) {
-        console.error("Error saving matches:", err);
-        throw err;
-    }
-};
+
 
 module.exports = {
     createGroups,
     shuffle,
     createGroupStageMatches,
-    determineMatchResult,
-    saveMatches
+    determineMatchResult
 }
