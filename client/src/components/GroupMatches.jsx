@@ -6,9 +6,9 @@ const GroupMatches = ({tournamentData, setTournamentData}) => {
 
 // onChange handler
 const onChangeHandler = (e, roundIndex, matchIndex, participantIndex) => {
-  const updatedMatches = [...matchData];
-  updatedMatches[roundIndex][matchIndex].participants[participantIndex].score = parseInt(e.target.value) || 0;
-  setMatchData(updatedMatches);
+const updatedMatches = [...matchData];
+updatedMatches[roundIndex][matchIndex].participants[participantIndex - 1].score = parseInt(e.target.value) || 0;
+setMatchData(updatedMatches);
 };
 
 
@@ -24,116 +24,102 @@ const handleScoreSubmit = (e, tournmanentId, roundIndex, matchIndex) =>{
     //update backend with the new match data
     axios.put(`http://localhost:8000/api/tournaments/${tournamentData._id}/matches/${roundIndex}/${matchIndex}`, matchToSubmit)
     .then(res => {
-      console.log("Match updated successfully", res.data);
-      //update the match data in the state
-      updatedMatchData[roundIndex][matchIndex] = matchToSubmit;
-      setMatchData(updatedMatchData);
+    console.log("Match updated successfully", res.data);
+    //update the match data in the state
+    updatedMatchData[roundIndex][matchIndex] = matchToSubmit;
+    setMatchData(updatedMatchData);
     })
     .catch(err => console.log("Error updating match", err));
     
 }
 
 useEffect(() => {
-  const fetchGroupMatches = async () => {
+const fetchGroupMatches = async () => {
     try {
-      console.log("Fetching group matches for tournament:", tournamentData._id);
+        if (!tournamentData?._id) return;
 
-      const response = await axios.get(`http://localhost:8000/api/tournaments/${tournamentData._id}/group-stage-matches`);
-      console.log("Fetched group matches:", response.data.matches);
+        console.log("Fetching group matches for tournament:", tournamentData._id);
 
-      setMatchData(response.data.matches);
+        const response = await axios.get(`http://localhost:8000/api/tournaments/${tournamentData._id}/group-stage-matches`);
+        console.log("Fetched group matches:", response.data.matches);
+
+        setMatchData(response.data.matches || []);
     } catch (err) {
-      console.error("Error fetching group matches:", err);
+        console.error("Error fetching group matches:", err);
+        setMatchData([]);
     }
+}
+    fetchGroupMatches();
+    }, [tournamentData._id]);
 
-    if(tournamentData._id){
-      fetchGroupMatches();
-    }
-  }
-}, [tournamentData._id]);
+    console.log("Group Match Data:", matchData);
 
 return (
-    <div>
-        <form onSubmit={ handleScoreSubmit }>
-          <h2>Group Matches</h2>
-          {/* Iterate over rounds of matches */}
-          {matchData.map((round, roundIndex) =>{
-            // Get the current group from the first match in the round
+<div>
+<form onSubmit={(e) => e.preventDefault()}>
+    <h2>Group Matches</h2>
+
+    {Array.isArray(matchData) && matchData.length > 0 ? (
+        matchData.map((round, roundIndex) => {
             const currentGroup = round[0]?.group || '';
 
             return (
-              <div key={roundIndex} className='mb-5'>
-                {/* display group name */}
-                {roundIndex === 0 && (
-                  <h3>{`Group ${currentGroup}`}</h3>
-                )}
-                {/* Round number */}
-                <h4>{`Round ${roundIndex + 1}`}</h4>
+                <div key={roundIndex} className='mb-5'>
+                    {roundIndex === 0 && <h3>{`Group ${currentGroup}`}</h3>}
+                    <h4>{`Round ${roundIndex + 1}`}</h4>
 
-                {/* Iterate over matches in the current round */}
-                <div className='row g-3 justify-content-center'>    {/* Each round is a row */}
-                  {round.map((match, matchIndex) => (
-                    // match card
-                    <div key={matchIndex} className='col-md-4'>     {/* Each match card is a colum*/}
-                      <div className="card p-3 align-items-center">
-                        <div className='card-body d-flex'>
-                          {/* participant 1 */}
-                          <label className='me-2'>
-                            {tournamentData.participants.find(
-                              (participant) => participant._id === match.participants[0]?.participantId
-                            )?.participantName}
-                          </label>
+                    <div className='row g-3 justify-content-center'>
+                        {round.map((match, matchIndex) => (
+                            <div key={matchIndex} className='col-md-4'>
+                                <div className="card p-3 align-items-center">
+                                    <div className='card-body d-flex'>
 
-                          {/* score input for participant1 */}
-                          <input
-                              type='number'
-                              className='form-control me-2'
-                              style={{width: "60px"}}
-                              min='0'
-                              max='100'
-                              value={match.participants[0]?.score || 0}
-                              onChange={(e) => onChangeHandler(e, roundIndex, matchIndex, 1)}
-                              >
-                          </input>
+                                        {/* Participant 1 */}
+                                        <label className='me-2'>
+                                            {Array.isArray(tournamentData.participants) &&
+                                                tournamentData.participants.find(
+                                                    (participant) => participant._id === match.participants[0]?.participantId
+                                                )?.participantName}
+                                        </label>
 
-                          <span className='mx-2'>-</span>
+                                        {/* Score Inputs */}
+                                        <input type='number' min='0' max='100' className='form-control me-2'
+                                            value={match.participants[0]?.score || 0}
+                                            onChange={(e) => onChangeHandler(e, roundIndex, matchIndex, 1)}
+                                        />
 
-                          {/* score input for participant2 */}
-                          <input
-                              type='number'
-                              className='form-control me-2'
-                              style={{width: "60px"}}
-                              min='0'
-                              max='100'
-                              value={match.participants[1]?.score || 0}
-                              onChange={(e) => onChangeHandler(e, roundIndex, matchIndex, 2)}
-                              >
-                          </input>
+                                        <span className='mx-2'>-</span>
 
-                          {/* participant 2 */}
-                          <label className='ms-2'>
-                          {tournamentData.participants.find(
-                              (participant) => participant._id === match.participants[1]?.participantId
-                            )?.participantName}
-                          </label>
-                        </div>
-                        {/* submit scores button */}
-                      <button type='submit'
-                              className='btn btn-primary mt-2'
-                              onClick={(e) => handleScoreSubmit(e, tournamentData._id, roundIndex, matchIndex)}
-                              >Confirm</button>
-                      </div>
+                                        <input type='number' min='0' max='100' className='form-control me-2'
+                                            value={match.participants[1]?.score || 0}
+                                            onChange={(e) => onChangeHandler(e, roundIndex, matchIndex, 2)}
+                                        />
+
+                                        <label className='ms-2'>
+                                            {Array.isArray(tournamentData.participants) &&
+                                                tournamentData.participants.find(
+                                                    (participant) => participant._id === match.participants[1]?.participantId
+                                                )?.participantName}
+                                        </label>
+                                    </div>
+
+                                    <button type='submit' className='btn btn-primary mt-2'
+                                        onClick={(e) => handleScoreSubmit(e, tournamentData._id, roundIndex, matchIndex)}>
+                                        Confirm
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
                     </div>
-                    ))}
-
-                  </div>
-              </div>
-            )
-          })}
-        </form>
-    </div>
+                </div>
+            );
+        })
+    ) : <p>No matches available.</p>}
+</form>
+</div>
 );
-}
+};
+
 
 
 export default GroupMatches
