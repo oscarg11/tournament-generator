@@ -14,24 +14,24 @@ module.exports.createTournament = async (req, res) => {
 
         console.log("Participant IDs:", participantIds);
         
-        console.log("Participants in createTournament before shuffle():", participantIds);
         // Shuffle participants
         const shuffledParticipants = shuffle([...participantIds]);
         console.log("Participants in createTournament AFTER shuffle():", participantIds);
 
-        //generate groups and matches if the format is groupAndKnockout
         let groups = [];
         let matches = [];
-        if(format === "groupAndKnockout"){
-            //generate groups
-            console.log("Participants in controller before calling createGroups:", shuffledParticipants);
-
-            groups = createGroups(shuffledParticipants);
-            
-            //generate matches
-            matches = createGroupStageMatches(groups, numberOfGroupStageLegs);
-        }
         
+        //generate groups and matches if the format is groupAndKnockout
+        if(format === "groupAndKnockout"){
+            //CREATE GROUPS
+            groups = createGroups(shuffledParticipants);
+            console.log("✅ Groups Created:", JSON.stringify(groups, null, 2));
+
+            //GENERATE GROUP STAGE MATCHES
+            const { allRounds, allMatches } = createGroupStageMatches(groups, numberOfGroupStageLegs);
+            matches = allMatches;
+            console.log("✅ Matches Generated:", JSON.stringify(matches, null, 2));
+        }
         
         const newTournament = await Tournament.create({
             tournamentName,
@@ -40,22 +40,25 @@ module.exports.createTournament = async (req, res) => {
             numberOfParticipants,
             participants: participantIds,
             groups: format === "groupAndKnockout" ? groups : undefined,
+            matches: []
         });
         
+        // Save matches to the database
         if (matches.length > 0) {
+            console.log("✅ Inserting matches into DB...");
             const matchInstances = await Match.insertMany(matches);
             const matchIds = matchInstances.map((match) => match._id);
             
+            console.log("✅ Inserted Match IDs:", matchIds);
             newTournament.matches = matchIds;
             await newTournament.save();
+            console.log("✅ Tournament updated with matches.");
         }
         
-        console.log("NEW TOURNAMENT CREATED SUCCESSFULLY!");
-        console.log("Groups created:", groups);
-        console.log("Matches created:", matches);
+        console.log("🎉 NEW TOURNAMENT CREATED SUCCESSFULLY!");
         res.json({ tournament: newTournament });
     } catch (err) {
-        console.error('Error:', err);
+        console.error('Error Creating Tournament:', err);
         res.status(500).json({ message: "Something went wrong in creating tournament", error: err });
     }
 }
@@ -138,18 +141,33 @@ module.exports.deleteTournament = (req, res) => {
 
 module.exports.getGroupStageMatches = async (req, res) => {
     try {
-        const { id } = req.params; //tournamentid
-        //find tournamennt
-        const tournament = await Tournament.findById(id).populate('matches');
-        if(!tournament){
-            return res.status(404).json({ message: "Tournament matches not found!" });
-        }
-        // filter group stage matches
-        const groupStageMatches = tournament.matches.filter(match => match.group);
-        console.log("Group Stage Matches:", groupStageMatches);
-        //return matches
-        res.json({ matches: groupStageMatches });
+        const { id } = req.params;
+        console.log("Fetching matches for tournament ID:", id);
 
+        const tournament = await Tournament.findById(id).populate('matches');
+
+        if (!tournament) {
+            console.log("Tournament not found!");
+            return res.status(404).json({ message: "Tournament not found!" });
+        }
+
+        console.log("Matches in tournament:", tournament.matches);
+
+        // ✅ Group matches by rounds
+        const groupedMatches = tournament.matches.reduce((acc, match) => {
+            if (!acc[match.round]) acc[match.round] = [];
+            acc[match.round].push(match);
+            return acc;
+        }, {});
+
+        // ✅ Convert object to array sorted by round number
+        const roundsArray = Object.keys(groupedMatches)
+            .sort((a, b) => a - b) // Ensure rounds are in order
+            .map((round) => groupedMatches[round]);
+
+        console.log("Grouped Matches by Rounds:", JSON.stringify(roundsArray, null, 2));
+
+        res.json({ matches: roundsArray }); // ✅ Return matches grouped by round
     } catch (err) {
         console.error("Error fetching group stage matches:", err);
         res.status(500).json({ message: "Something went wrong", error: err });
