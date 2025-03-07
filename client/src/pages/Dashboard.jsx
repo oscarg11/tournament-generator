@@ -1,5 +1,5 @@
 import React, {useState, useEffect} from 'react'
-import {useParams} from 'react-router-dom'
+import {useParams, Link} from 'react-router-dom'
 import axios from 'axios'
 import NavBar from '../components/NavBar'
 import GroupStandings from '../components/GroupStandings'
@@ -53,6 +53,28 @@ const [matchData, setMatchData] = useState([]);
         </p>
       <p>Format: {tournamentData.format}</p>
       {tournamentData.format === 'groupAndKnockout' && <p>Number of group stage legs: {tournamentData.numberOfGroupStageLegs}</p>}
+
+      <div className="container">
+        <nav className="navbar navbar-expand navbar-dark bg-primary">
+            <div className="collapse navbar-collapse justify-content-center" id="navbarNav">
+              <ul className="navbar-nav">
+                  <li className="nav-item">
+                      <Link className="nav-link" to="/">Group Stage</Link>
+                  </li>
+                  <li className="nav-item">
+                      <Link className="nav-link" to="">Finals Stage</Link>
+                  </li>
+                  <li className="nav-item">
+                      <Link className="nav-link" to="/">Teams</Link>
+                  </li>
+                  <li className="nav-item">
+                      <Link className="nav-link" to="/">Stats</Link>
+                  </li>
+              </ul>
+            </div>
+        </nav>
+
+      </div>
       
       {tournamentData && (
         <>
