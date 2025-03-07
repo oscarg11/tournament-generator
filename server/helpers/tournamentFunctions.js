@@ -104,10 +104,6 @@ const createGroupStageMatches = (groups, numberOfGroupStageLegs) => {
 
 
 
-
-
-
-
     //determin match result
 const determineMatchResult = (participant1, participant2, score,match) => {
         const POINTS_PER_WIN = 3;
