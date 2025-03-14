@@ -7,6 +7,7 @@ const GroupStage = ({tournamentData, setTournamentData, matchData, setMatchData}
   const [active, setActive] = useState(true)
 
   return (
+    // Navbar to toggle between group standings and group matches
     <div className="container">
       <nav className="navbar navbar-expand navbar-dark bg-secondary mb-3">
           <div className="collapse navbar-collapse justify-content-start" id="navbarNav">
@@ -17,14 +18,14 @@ const GroupStage = ({tournamentData, setTournamentData, matchData, setMatchData}
                     </button>
                 </li>
                 <li className="nav-item">
-                <button className="btn btn-light mx-2" onClick={() => setActive(false)}>
+                    <button className="btn btn-light mx-2" onClick={() => setActive(false)}>
                       Group Matches
                     </button>
                 </li>
             </ul>
           </div>
         </nav>
-
+          {/* if active state is true display group standings, else display group matches */}
             <div className="flex flex-row gap-3">
                 <>
                   {active? <GroupStandings groups={tournamentData.groups}/> 
