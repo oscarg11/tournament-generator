@@ -64,24 +64,28 @@ const fetchGroupMatches = async () => {
         <div>
             <form onSubmit={(e) => e.preventDefault()}>
                 <h2>Group Matches</h2>
-
+                {/* check if matchData exists and has matches */}
                 {Array.isArray(matchData) && matchData.length > 0 ? (
+                    // loop through each round in matchData
                     matchData.map((round, roundIndex) => {
                         const currentGroup = round[0]?.group || '';
 
                         return (
                             <div key={roundIndex} className='mb-5'>
+                                {/* Display the group name  */}
                                 {roundIndex === 0 && <h3>{`Group ${currentGroup}`}</h3>}
+                                {/* Display the round number */}
                                 <h4>{`Round ${roundIndex + 1}`}</h4>
 
                                 <div className='row g-3 justify-content-center'>
+                                    {/* loop through each match in the round */}
                                     {round.map((match, matchIndex) => {
                                         //Define participant details
                                         const participant1 = participantLookup[match.participants[0]?.participantId] || {};
                                         const participant2 = participantLookup[match.participants[1]?.participantId] || {};
 
                                         return (
-                                            <div key={matchIndex} className='col-md-4'>
+                                            <div key={matchIndex} className='col-md-6'>
                                                 <div className="card p-3 align-items-center">
                                                     <div className='card-body d-flex'>
 
