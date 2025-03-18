@@ -26,14 +26,24 @@ const handleScoreSubmit = (e, tournmanentId, roundIndex, matchIndex) =>{
     const updatedMatchData = [...matchData];
     const matchToSubmit = updatedMatchData[roundIndex][matchIndex];
 
+    //extract the scores
+    const matchScores = {
+        participant1Score: matchToSubmit.participants[0]?.score || 0,
+        participant2Score: matchToSubmit.participants[1]?.score || 0
+    }
+    console.log("Match scores to submit", matchScores);
 
     //update backend with the new match data
-    axios.put(`http://localhost:8000/api/tournaments/${tournamentData._id}/matches/${roundIndex}/${matchIndex}`, matchToSubmit)
+    axios.put(`http://localhost:8000/api/tournaments/${tournamentData._id}/group-matches/${roundIndex}/${matchIndex}`, matchScores)
     .then(res => {
     console.log("Match updated successfully", res.data);
+
     //update the match data in the state
-    updatedMatchData[roundIndex][matchIndex] = matchToSubmit;
+    updatedMatchData[roundIndex][matchIndex].participants[0].score = matchScores.participant1Score;
+    updatedMatchData[roundIndex][matchIndex].participants[1].score = matchScores.participant2Score;
     setMatchData(updatedMatchData);
+
+    console.log("updated match data", updatedMatchData)
     })
     .catch(err => console.log("Error updating match", err));
     
@@ -58,7 +68,6 @@ const fetchGroupMatches = async () => {
     fetchGroupMatches();
     }, [tournamentData._id]);
 
-    console.log("Group Match Data:", matchData);
 
     return (
         <div>
