@@ -1,4 +1,5 @@
-const { shuffle, createGroups, createGroupStageMatches } = require("../helpers/tournamentFunctions");
+//Backend helper functions
+const { shuffle, createGroups, createGroupStageMatches, determineMatchResult } = require("../helpers/tournamentFunctions");
 
 const { Tournament,Participant, Match}= require("../models/tournament.model");
 
@@ -142,7 +143,7 @@ module.exports.deleteTournament = (req, res) => {
 module.exports.getGroupStageMatches = async (req, res) => {
     try {
         const { id } = req.params;
-        console.log("Fetching matches for tournament ID:", id);
+        console.log("Get Group stage matches for tournament ID:", id);
 
         const tournament = await Tournament.findById(id).populate('matches');
 
@@ -151,7 +152,7 @@ module.exports.getGroupStageMatches = async (req, res) => {
             return res.status(404).json({ message: "Tournament not found!" });
         }
 
-        console.log("Matches in tournament:", tournament.matches);
+        console.log("Group Stage Matches in tournament:", tournament.matches);
 
         // ✅ Group matches by rounds
         const groupedMatches = tournament.matches.reduce((acc, match) => {
@@ -234,38 +235,67 @@ module.exports.updateGroupStageMatchScores = async (req, res) => {
         const { tournamentId, roundIndex, matchIndex } = req.params;
         const { participant1Score, participant2Score } = req.body;
 
-        console.log("Parameters received - tournamentId:", tournamentId, "roundIndex:", roundIndex, "matchIndex:", matchIndex);
-        console.log("Scores received - participant1Score:", participant1Score, "participant2Score:", participant2Score);
-
+        console.log(`Updating scores for tournament ID: ${tournamentId}, Round: ${roundIndex}, Match: ${matchIndex}`);
+        console.log(`Scores recieved: P1: ${participant1Score}, P2: ${participant2Score}`);
+        
         // Find the tournament by ID
         const tournament = await Tournament.findById(tournamentId).populate('matches');
         if (!tournament) {
             return res.status(404).json({ message: "Tournament not found!" });
         }
-        console.log(tournament, "Tournament Found")
-        console.log(tournament.matches, "Tournament matches")
-
-        // Validate the provided round and match index
-        console.log("Validating roundIndex:", roundIndex, "against matches length:", tournament.matches?.length);
-        if (!Array.isArray(tournament.matches) || tournament.matches.length <= roundIndex) {
-        return res.status(404).json({ message: "Round not found!" });
-}
-
-        const round = tournament.matches[roundIndex];
-        console.log("Round retrieved:", round);
-        if (!Array.isArray(round) || round.length <= matchIndex) {
-            return res.status(404).json({ message: "Match not found!" });
+        
+        //validate round index
+        if(!Array.isArray(tournament.matches) || tournament.matches.length <= roundIndex){
+            return res.status(404).json({ message: "Round not found!"});
         }
 
-        // Update scores
-        console.log("Match before score update:", match);
-        match.score.participant1Score = participant1Score;
-        match.score.participant2Score = participant2Score;
+        const round = tournament.matches[roundIndex];
 
-        // Save the updated match
+        //validate match index
+        if(!Array.isArray(round) || round.length <= matchIndex){
+            return res.status(404).json({ message: "Match not found!"});
+        }
+
+        const match = round[matchIndex];
+
+        //ensure match is valid
+        if(!match || !match.participants || match.participants.length < 2){
+            return res.status(400).json({ message: "Invalid match data!"});
+        }
+        console.log("Match found:", match)
+
+        //assign new scores
+        match.participants[0].score = participant1Score;
+        match.participants[1].score = participant2Score;
+
+        //find participants
+        const participant1 = await Participant.findById(match.participants[0].participantsId);
+        const participant2 = await Participant.findById(match.participants[1].participantsId)
+
+        if(!participant1 || !participant2){
+            return res.status(404).json({ message: "Participants not found!"});
+        }
+
+        //call helper function to determine match result
+        const updatedMatchScores = determineMatchResult(
+            participant1,
+            participant2,
+            { participant1: participant1Score, participant2: participant2Score}
+        );
+
+        //save updates
+        await updatedMatchScores.participant1.save();
+        await updatedMatchScores.participant2.save();
         await match.save();
+        await tournament.save();
 
-        res.json({ success: true, updatedMatch: match, message: "Scores updated successfully!" });
+        //success response
+        return res.json({
+            success: true,
+            updatedMatch: match,
+            message: "Scores updated successfully!",
+            updatedMatchScores: [updatedMatchScores.participant1, updatedMatchScores.participant2]
+        })
     } catch (err) {
         console.error('Error:', err);
         res.status(500).json({ message: "Something went wrong", error: err });
