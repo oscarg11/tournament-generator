@@ -40,7 +40,7 @@ const [activeTab, setActiveTab] = useState('groupStage'); // state to track whic
       // Simulate a network delay (e.g., 2 seconds)
       setTimeout(() => {
         setLoading(false); // Now stop loading
-      }, 2000);
+      }, 500);
     })
     .catch(err => {
       console.log("Failed to fetch tournament data", err);
