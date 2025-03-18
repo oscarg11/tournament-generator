@@ -110,15 +110,12 @@ const determineMatchResult = (participant1, participant2, score,match) => {
         const POINTS_PER_DRAW = 1;
         const POINTS_PER_LOSS = 0;
 
-        console.log("Match structure:", match);
-
-
-        //scores before the match
-        console.log("Score before match", participant1, participant2);
-        console.log("Participant1", participant1.scores);
-        console.log("Participant2", score.participant2);
-
-        if(score.partcipant1 > score.participant2){
+        console.log("Before Match updates");
+        console.log("Participant1", participant1);
+        console.log("Participant2", participant2);
+        
+        //participant 1 wins
+        if(score.participant1 > score.participant2){
             participant1.points += POINTS_PER_WIN;
             participant1.wins += 1;
             participant2.losses += 1;
@@ -127,6 +124,7 @@ const determineMatchResult = (participant1, participant2, score,match) => {
             participant1.matchHistory.push("W")
             participant2.matchHistory.push("L")
         } else if(score.participant1 < score.participant2){
+            //participant 2 wins
             participant2.points += POINTS_PER_WIN;
             participant2.wins += 1;
             participant1.losses += 1;
@@ -135,6 +133,7 @@ const determineMatchResult = (participant1, participant2, score,match) => {
             participant1.matchHistory.push("L")
             participant2.matchHistory.push("W")
         }else{
+            //draw
             participant1.points += POINTS_PER_DRAW;
             participant2.points += POINTS_PER_DRAW;
             participant1.draws += 1;
@@ -143,10 +142,11 @@ const determineMatchResult = (participant1, participant2, score,match) => {
             participant1.matchHistory.push("D")
             participant2.matchHistory.push("D")
         }
-        // score after the match
-        console.log("Score after match", participant1, participant2);
-        console.log("Participant1", score.participant1);
-        console.log("Participant2", score.participant2);
+
+        console.log("After Match updates");
+        console.log("Participant1", participant1);
+        console.log("Participant2", participant2);
+        
         return {participant1, participant2}
 }
 
