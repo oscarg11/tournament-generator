@@ -152,8 +152,6 @@ module.exports.getGroupStageMatches = async (req, res) => {
             return res.status(404).json({ message: "Tournament not found!" });
         }
 
-        console.log("Group Stage Matches in tournament:", tournament.matches);
-
         // ✅ Group matches by rounds
         const groupedMatches = tournament.matches.reduce((acc, match) => {
             if (!acc[match.round]) acc[match.round] = [];
@@ -165,8 +163,6 @@ module.exports.getGroupStageMatches = async (req, res) => {
         const roundsArray = Object.keys(groupedMatches)
             .sort((a, b) => a - b) // Ensure rounds are in order
             .map((round) => groupedMatches[round]);
-
-        console.log("Grouped Matches by Rounds:", JSON.stringify(roundsArray, null, 2));
 
         res.json({ matches: roundsArray }); // ✅ Return matches grouped by round
     } catch (err) {
@@ -228,7 +224,7 @@ module.exports.loadTournamentData = async (req, res) => {
     }
 }
 
-//update group stage match scores
+//update group stage match scores and update each participants stats
 module.exports.updateGroupStageMatchScores = async (req, res) => {
     try {
         // Extract parameters from request
@@ -244,19 +240,22 @@ module.exports.updateGroupStageMatchScores = async (req, res) => {
             return res.status(404).json({ message: "Tournament not found!" });
         }
         
-        //validate round index
-        if(!Array.isArray(tournament.matches) || tournament.matches.length <= roundIndex){
-            return res.status(404).json({ message: "Round not found!"});
+        console.log("Group Stage Matches", tournament.matches);
+        
+        //Get all group matches in the specified round
+        const roundMatches = tournament.matches.filter(match => match.round === parseInt(roundIndex));
+
+        if(!roundMatches.length){
+            return res.status(404).json({ message: "Round not found!"})
         }
+        console.log("Filtered round matches", roundMatches);
 
-        const round = tournament.matches[roundIndex];
-
-        //validate match index
-        if(!Array.isArray(round) || round.length <= matchIndex){
+        //validate match index within the round
+        if(matchIndex < 0 || matchIndex >= roundMatches.length){
             return res.status(404).json({ message: "Match not found!"});
         }
 
-        const match = round[matchIndex];
+        const match = roundMatches[matchIndex];
 
         //ensure match is valid
         if(!match || !match.participants || match.participants.length < 2){
@@ -268,13 +267,19 @@ module.exports.updateGroupStageMatchScores = async (req, res) => {
         match.participants[0].score = participant1Score;
         match.participants[1].score = participant2Score;
 
-        //find participants
-        const participant1 = await Participant.findById(match.participants[0].participantsId);
-        const participant2 = await Participant.findById(match.participants[1].participantsId)
+        console.log("Updated Group Match Scores:", match.participants);
+
+        //find participants using the participantId
+        const participant1id = match.participants[0].participantId;
+        const participant2id = match.participants[1].participantId;
+
+        const participant1 = await Participant.findById(participant1id);
+        const participant2 = await Participant.findById(participant2id);
 
         if(!participant1 || !participant2){
             return res.status(404).json({ message: "Participants not found!"});
         }
+        console.log("Participants found:", participant1, participant2);
 
         //call helper function to determine match result
         const updatedMatchScores = determineMatchResult(
