@@ -21,7 +21,7 @@ const GroupStandings = ({groups = []}) => {
                 <thead className='table-active'>
                   <tr>
                     <th scope="col">Group {group.groupName}</th>
-                    <th scope="col">P</th>
+                    <th scope="col">MP</th>
                     <th scope="col">W</th>
                     <th scope="col">D</th>
                     <th scope="col">L</th>
