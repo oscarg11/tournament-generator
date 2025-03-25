@@ -1,5 +1,5 @@
 //Backend helper functions
-const { shuffle, createGroups, createGroupStageMatches, determineMatchResult } = require("../helpers/tournamentFunctions");
+const { shuffle, createGroups, createGroupStageMatches, determineGroupMatchResult } = require("../helpers/tournamentFunctions");
 
 const { Tournament,Participant, Match}= require("../models/tournament.model");
 
@@ -240,11 +240,10 @@ module.exports.updateGroupStageMatchScores = async (req, res) => {
             return res.status(404).json({ message: "Tournament not found!" });
         }
         
-        console.log("Group Stage Matches", tournament.matches);
-        
         //Get all group matches in the specified round
         const roundMatches = tournament.matches.filter(match => match.round === parseInt(roundIndex));
 
+        //validate rounds
         if(!roundMatches.length){
             return res.status(404).json({ message: "Round not found!"})
         }
@@ -269,7 +268,7 @@ module.exports.updateGroupStageMatchScores = async (req, res) => {
 
         console.log("Updated Group Match Scores:", match.participants);
 
-        //find participants using the participantId
+        //get participants using the participantId
         const participant1id = match.participants[0].participantId;
         const participant2id = match.participants[1].participantId;
 
@@ -282,7 +281,7 @@ module.exports.updateGroupStageMatchScores = async (req, res) => {
         console.log("Participants found:", participant1, participant2);
 
         //call helper function to determine match result
-        const updatedMatchScores = determineMatchResult(
+        const updatedMatchScores = determineGroupMatchResult(
             participant1,
             participant2,
             { participant1: participant1Score, participant2: participant2Score}
@@ -293,6 +292,13 @@ module.exports.updateGroupStageMatchScores = async (req, res) => {
         await updatedMatchScores.participant2.save();
         await match.save();
         await tournament.save();
+
+        // re-fetch updated participants from MongoDB after saving
+        const updatedParticipant1 = await Participant.findById(participant1._id);
+        const updatedParticipant2 = await Participant.findById(participant2._id);
+
+        console.log("✅ Updated Participant 1 in MongoDB:", updatedParticipant1);
+        console.log("✅ Updated Participant 2 in MongoDB:", updatedParticipant2);
 
         //success response
         return res.json({
