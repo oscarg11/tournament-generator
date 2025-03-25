@@ -29,6 +29,7 @@ const GroupStandings = ({groups = []}) => {
                     <th scope="col">GA</th>
                     <th scope="col">GD</th>
                     <th scope="col">PTS</th>
+                    <th scope="col">Match History</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -43,6 +44,16 @@ const GroupStandings = ({groups = []}) => {
                       <td>{participant?.goalsAgainst || 0}</td>
                       <td>{participant?.goalDifference || 0}</td>
                       <td>{participant?.points || 0}</td>
+                      <td>
+                        {participant?.matchHistory?.map((match, index) => (
+                          <span
+                          key={index}
+                          className={`badge rounded-pill text-white px-2 py-1 me-1
+                          ${match === 'W' ? 'bg-success' : match === 'L' ? 'bg-danger' : 'bg-secondary'}`}>
+                            {match}{" "}
+                          </span>
+                        ))}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
