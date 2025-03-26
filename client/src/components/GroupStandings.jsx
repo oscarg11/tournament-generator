@@ -6,6 +6,18 @@ const GroupStandings = ({groups = []}) => {
     console.error("Error: `groups` is not an array", groups);
     return <div>Error loading groups.</div>;
   }
+
+  // Sort participants by points, goal difference, and goals scored
+  const sortGroupStandings = (participantA,participantB) => {
+    if(participantB !== participantA) return participantB.points - participantA.points;
+
+    if(participantB.goalDifference !== participantA.goalDifference) return participantB.goalDifference - participantA.goalDifference;
+
+    if(participantB.goalsScored !== participantA.goalsScored) return participantB.goalsScored - participantA.goalsScored;
+
+  }
+
+
   return (
     <div>
        {groups.map((group, groupIndex) => {
@@ -44,13 +56,15 @@ const GroupStandings = ({groups = []}) => {
                       <td>{participant?.goalsAgainst || 0}</td>
                       <td>{participant?.goalDifference || 0}</td>
                       <td>{participant?.points || 0}</td>
+
+                      {/* Color coded match history  */}
                       <td>
                         {participant?.matchHistory?.map((match, index) => (
                           <span
                           key={index}
                           className={`badge rounded-pill text-white px-2 py-1 me-1
                           ${match === 'W' ? 'bg-success' : match === 'L' ? 'bg-danger' : 'bg-secondary'}`}>
-                            {match}{" "}
+                            {match}
                           </span>
                         ))}
                       </td>
