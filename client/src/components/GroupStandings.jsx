@@ -7,16 +7,73 @@ const GroupStandings = ({groups = []}) => {
     return <div>Error loading groups.</div>;
   }
 
+  //filter head to head matches
+  const filterHeadToHeadMatches = matches.filter(match => {
+    const ids = match.participants.map(p => p.participantId.toString());
+    return ids.includes(participantA.participantId.toString())
+    && ids.includes(participantB.participantId.toString());
+  });
+
+  // Head to head comparison
+  const headToHeadComparison = (participantA, participantB, filterHeadToHeadMatches) => {
+    let statsA = { points: 0, goalsScored: 0, goalDifference: 0};
+    let statsB = { points: 0, goalsScored: 0, goalDifference: 0};
+
+    for(const match of filterHeadToHeadMatches) {
+      const [p1, p2] = match.participants;
+
+      const p1Id = p1.participantId.toString();
+      const p2Id = p2.participantId.toString();
+      const aId = participantA._id.toString();
+      const bId = participantB._id.toString();
+
+      let aScore, bScore;
+
+      // match participants to the correct ids
+      if(p1Id === aId && p2Id === bId){
+        aScore = p1.score;
+        bScore = p2.score;
+      }else if(p1Id === bId && p2Id === aId){
+        aScore = p2.score;
+        bScore = p1.score;
+      }else{
+        continue;
+      }
+
+      statsA.goalsScored += aScore;
+      statsB.goalsScored += bScore;
+
+      statsA.goalDifference += aScore - bScore;
+      statsB.goalDifference += bScore - aScore;
+    }
+    
+      // Update stats
+      if(statsA.points !== statsB.points){
+        return statsB.points - statsA.points;
+      }
+      if(statsA.goalDifference !== statsB.goalDifference){
+        return statsB.goalDifference - statsA.goalDifference;
+      }
+      if(statsA.goalsScored !== statsB.goalsScored){
+        return statsB.goalsScored - statsA.goalsScored;
+      }
+      return 0;
+
+  }
+
+    
+
   // Sort participants by points, goal difference, and goals scored
   const sortGroupStandings = (participantA,participantB) => {
-    if(participantB !== participantA) return participantB.points - participantA.points;
+    if(participantB.points !== participantA.points) return participantB.points - participantA.points;
 
     if(participantB.goalDifference !== participantA.goalDifference) return participantB.goalDifference - participantA.goalDifference;
 
     if(participantB.goalsScored !== participantA.goalsScored) return participantB.goalsScored - participantA.goalsScored;
 
-  }
+    if(participantB === participantA) return headToHeadComparison(participantA, participantB);
 
+  }
 
   return (
     <div>
