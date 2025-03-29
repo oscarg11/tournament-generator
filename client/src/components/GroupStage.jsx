@@ -28,7 +28,9 @@ const GroupStage = ({tournamentData, setTournamentData, matchData, setMatchData}
           {/* if active state is true display group standings, else display group matches */}
             <div className="flex flex-row gap-3">
                 <>
-                  {active? <GroupStandings groups={tournamentData.groups}/> 
+                  {active? <GroupStandings 
+                            groups={tournamentData.groups}
+                            matches={matchData}/> 
                   : 
                   <GroupMatches
                           tournamentData={tournamentData}
