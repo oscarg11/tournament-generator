@@ -1,24 +1,27 @@
 import React from 'react'
 
 
-const GroupStandings = ({groups = []}) => {
+const GroupStandings = ({groups = [], matches = []}) => {
   if (!Array.isArray(groups)) {
     console.error("Error: `groups` is not an array", groups);
     return <div>Error loading groups.</div>;
   }
 
-  //filter head to head matches
-  const filterHeadToHeadMatches = matches.filter(match => {
-    const ids = match.participants.map(p => p.participantId.toString());
-    return ids.includes(participantA.participantId.toString())
-    && ids.includes(participantB.participantId.toString());
-  });
 
-  // Head to head comparison
-  const headToHeadComparison = (participantA, participantB, filterHeadToHeadMatches) => {
+  // Head to head comparison for final tie breaker
+  const headToHeadComparison = (participantA, participantB, matches) => {
+    // Filter in matches between the two participants
+    const filterHeadToHeadMatches = matches.filter(match => {
+      const ids = match.participants.map(p => p.participantId.toString());
+      return ids.includes(participantA.participantId.toString())
+      && ids.includes(participantB.participantId.toString());
+    })
+
+    // Initialize stats for both participants
     let statsA = { points: 0, goalsScored: 0, goalDifference: 0};
     let statsB = { points: 0, goalsScored: 0, goalDifference: 0};
 
+    //loop through head to head matches
     for(const match of filterHeadToHeadMatches) {
       const [p1, p2] = match.participants;
 
@@ -40,6 +43,17 @@ const GroupStandings = ({groups = []}) => {
         continue;
       }
 
+      // Update stats based on match result
+      if(aScore > bScore){
+        statsA.points += 3;
+      } else if(aScore < bScore){
+        statsB.points += 3;
+      } else {
+        statsA.points += 1;
+        statsB.points += 1;
+      }
+
+      // Update goals scored and goal difference
       statsA.goalsScored += aScore;
       statsB.goalsScored += bScore;
 
@@ -57,24 +71,30 @@ const GroupStandings = ({groups = []}) => {
       if(statsA.goalsScored !== statsB.goalsScored){
         return statsB.goalsScored - statsA.goalsScored;
       }
-      return 0;
 
-  }
+      return 0; //still tied
+  };
 
     
 
   // Sort participants by points, goal difference, and goals scored
-  const sortGroupStandings = (participantA,participantB) => {
-    if(participantB.points !== participantA.points) return participantB.points - participantA.points;
-
-    if(participantB.goalDifference !== participantA.goalDifference) return participantB.goalDifference - participantA.goalDifference;
-
-    if(participantB.goalsScored !== participantA.goalsScored) return participantB.goalsScored - participantA.goalsScored;
-
-    if(participantB === participantA) return headToHeadComparison(participantA, participantB);
-
+  const sortGroupStandings = (participantA,participantB, matches) => {
+    // if points are not equal, sort by points
+    if(participantB.points !== participantA.points){
+      return participantB.points - participantA.points;
+    } 
+    if(participantB.goalDifference !== participantA.goalDifference){
+      return participantB.goalDifference - participantA.goalDifference;
+    } 
+    
+    if(participantB.goalsScored !== participantA.goalsScored){
+      return participantB.goalsScored - participantA.goalsScored;
+    } 
+    // If still tied, use head-to-head comparison
+    return headToHeadComparison(participantA, participantB, matches);
   }
 
+  
   return (
     <div>
        {groups.map((group, groupIndex) => {
@@ -82,6 +102,11 @@ const GroupStandings = ({groups = []}) => {
           console.error(`Error: participant at index ${groupIndex} is not an array`, group.participants);
           return null; // Skip rendering this group
         }
+
+        // call sortGroupStandings function to sort participants
+        const sortedParticipants = [...group.participants].sort((a, b) => {
+          return sortGroupStandings(a, b, group.matches);
+        })
 
         return (
           <div key={group._id} className='mb-3 container'>
@@ -102,7 +127,7 @@ const GroupStandings = ({groups = []}) => {
                   </tr>
                 </thead>
                 <tbody>
-                  {group.participants.map((participant, index) => (
+                  {sortedParticipants.map((participant, index) => (
                     <tr key={index}>
                       <td className='col-2'>{participant.participantName} ({participant.teamName})</td>
                       <td>{participant?.matchesPlayed || 0}</td>
