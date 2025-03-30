@@ -1,14 +1,13 @@
 import React from 'react'
 
-
 const GroupStandings = ({groups = [], matches = []}) => {
   if (!Array.isArray(groups)) {
     console.error("Error: `groups` is not an array", groups);
     return <div>Error loading groups.</div>;
   }
 
-
   // Head to head comparison for final tie breaker
+
   const headToHeadComparison = (participantA, participantB, matches) => {
     // Filter in matches between the two participants
     const filterHeadToHeadMatches = matches.filter(match => {
@@ -25,6 +24,8 @@ const GroupStandings = ({groups = [], matches = []}) => {
     for(const match of filterHeadToHeadMatches) {
       const [p1, p2] = match.participants;
 
+      // convert participantId to string for comparison
+      // This is to ensure we are comparing the correct participants
       const p1Id = p1.participantId.toString();
       const p2Id = p2.participantId.toString();
       const aId = participantA._id.toString();
@@ -75,9 +76,8 @@ const GroupStandings = ({groups = [], matches = []}) => {
       return 0; //still tied
   };
 
-    
-
   // Sort participants by points, goal difference, and goals scored
+
   const sortGroupStandings = (participantA,participantB, matches) => {
     // if points are not equal, sort by points
     if(participantB.points !== participantA.points){
@@ -114,6 +114,7 @@ const GroupStandings = ({groups = [], matches = []}) => {
               <table className='table table-bordered'>
                 <thead className='table-active'>
                   <tr>
+                    <th scope="col" className='col-2'>#</th>
                     <th scope="col">Group {group.groupName}</th>
                     <th scope="col">MP</th>
                     <th scope="col">W</th>
@@ -129,6 +130,7 @@ const GroupStandings = ({groups = [], matches = []}) => {
                 <tbody>
                   {sortedParticipants.map((participant, index) => (
                     <tr key={index}>
+                      <td>{index + 1} </td>
                       <td className='col-2'>{participant.participantName} ({participant.teamName})</td>
                       <td>{participant?.matchesPlayed || 0}</td>
                       <td>{participant?.wins || 0}</td>
