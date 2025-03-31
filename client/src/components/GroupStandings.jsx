@@ -114,7 +114,6 @@ const GroupStandings = ({groups = [], matches = []}) => {
               <table className='table table-bordered'>
                 <thead className='table-active'>
                   <tr>
-                    <th scope="col" className='col-2'>#</th>
                     <th scope="col">Group {group.groupName}</th>
                     <th scope="col">MP</th>
                     <th scope="col">W</th>
@@ -130,8 +129,19 @@ const GroupStandings = ({groups = [], matches = []}) => {
                 <tbody>
                   {sortedParticipants.map((participant, index) => (
                     <tr key={index}>
-                      <td>{index + 1} </td>
-                      <td className='col-2'>{participant.participantName} ({participant.teamName})</td>
+
+                      <td className='col-2'>
+                        {/* styling to keep table postion numbers and participant names aligned */}
+                        <div className='d-flex'>
+                          <div style={{ width: '2rem', textAlign: 'right', paddingRight:'0.5rem', flexShrink: 0 }}>
+                            {index+1}.
+                          </div>
+                          <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
+                            {participant.participantName} ({participant.teamName})
+                          </div>
+                        </div>
+                        
+                      </td>
                       <td>{participant?.matchesPlayed || 0}</td>
                       <td>{participant?.wins || 0}</td>
                       <td>{participant?.draws || 0}</td>
