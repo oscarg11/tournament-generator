@@ -8,7 +8,14 @@ const GroupStandings = ({groups = [], matches = []}) => {
 
   // Head to head comparison for final tie breaker
 
+  console.log("Matches IN GROUP Standings:", matches);
+
   const headToHeadComparison = (participantA, participantB, matches) => {
+    // Check if there are any matches to compare
+    if(!Array.isArray(matches) || matches.length === 0){
+      console.warn("No matches have been played yet");
+      return 0;
+    }
     // Filter in matches between the two participants
     const filterHeadToHeadMatches = matches.filter(match => {
       const ids = match.participants.map(p => p.participantId.toString());
@@ -93,6 +100,8 @@ const GroupStandings = ({groups = [], matches = []}) => {
     // If still tied, use head-to-head comparison
     return headToHeadComparison(participantA, participantB, matches);
   }
+
+  console.log("Matches IN GROUP Standings AFTER FUNCTION RUNS:", matches);
 
   
   return (
