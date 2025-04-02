@@ -19,34 +19,62 @@ setMatchData(updatedMatches);
 
 
 //handle score submit
-const handleScoreSubmit = (e, tournmanentId, roundIndex, matchIndex) =>{
+const handleScoreSubmit = async (e, roundIndex, matchIndex) =>{
     e.preventDefault();
-
-    //get the current match
-    const updatedMatchData = [...matchData];
-    const matchToSubmit = updatedMatchData[roundIndex][matchIndex];
-
-    //extract the scores
-    const matchScores = {
-        participant1Score: matchToSubmit.participants[0]?.score || 0,
-        participant2Score: matchToSubmit.participants[1]?.score || 0
-    }
-    console.log("Match scores to submit", matchScores);
-
-    //update backend with the new match data
-    axios.put(`http://localhost:8000/api/tournaments/${tournamentData._id}/group-matches/${roundIndex}/${matchIndex}`, matchScores)
-    .then(res => {
-    console.log("Match updated successfully", res.data);
-
-    //update the match data in the state
-    updatedMatchData[roundIndex][matchIndex].participants[0].score = matchScores.participant1Score;
-    updatedMatchData[roundIndex][matchIndex].participants[1].score = matchScores.participant2Score;
-    setMatchData(updatedMatchData);
-
-    console.log("updated match data", updatedMatchData)
-    })
-    .catch(err => console.log("Error updating match", err));
     
+    try {
+        console.log("🏗️ Entire matchData structure:", matchData);
+        
+        //make sure matchData and round are valid arrays
+        if (!Array.isArray(matchData)) {
+            console.error("⚠️ matchData is not an array yet:", matchData);
+            return;
+        }
+        if (!Array.isArray(matchData[roundIndex])) {
+            console.error("⚠️ matchData[roundIndex] is not an array:", matchData[roundIndex]);
+            return;
+        }
+
+        // ✅ get the specific match object from the round + match indices
+        const matchToSubmit = matchData[roundIndex][matchIndex];
+        console.log("matchToSubmit object:", matchToSubmit);
+
+        // make sure match and participants exist
+        if (!matchToSubmit || !matchToSubmit.participants) {
+            console.error("⚠️ Invalid match or participants data", matchToSubmit);
+            return;
+        }
+
+        // ✅ create the score object to send to the backend
+        const matchScores = {
+            participant1Score: matchToSubmit.participants[0]?.score || 0,
+            participant2Score: matchToSubmit.participants[1]?.score || 0
+        }
+        console.log("Match scores to submit", matchScores);
+    
+        //✅ update backend with the new match data
+        await axios.put(`http://localhost:8000/api/tournaments/${tournamentData._id}/group-matches/${roundIndex}/${matchIndex}`,
+            matchScores
+        );
+        console.log("Match Updated Successfully ✅")
+
+        //✅ re-fetch updated match data to reflect changes on UI
+        const response = await axios.get(
+            `http://localhost:8000/api/tournaments/${tournamentData._id}/group-stage-matches`
+        );
+        console.log("Fetched refetched match data:", response.data.matches);
+
+        // check if the backend returned valid match data
+        if(response.data?.matches){
+            console.log("Refetched updated match data");
+            setMatchData(response.data.matches);
+        }else{
+            console.warn("No match data found in response");
+        }
+    
+    } catch (err) {
+        console.error("Error updating match data:", err);
+    };
 }
 
 useEffect(() => {
@@ -95,7 +123,12 @@ const fetchGroupMatches = async () => {
 
                                         return (
                                             <div key={matchIndex} className='col-md-6'>
-                                                <div className="card p-3 align-items-center">
+
+                                                {/* Match Card */}
+                                                <div 
+                                                className={`card p-3 align-items-center`}
+                                                style={{ minHeight: '200px', opacity: match.status === 'complete' ? 0.5:1}}
+                                                >
                                                     <div className='card-body d-flex'>
 
                                                         {/* Participant 1 */}
@@ -121,10 +154,19 @@ const fetchGroupMatches = async () => {
                                                         </label>
                                                     </div>
 
-                                                    <button type='submit' className='btn btn-primary mt-2'
-                                                        onClick={(e) => handleScoreSubmit(e, tournamentData._id, roundIndex, matchIndex)}>
-                                                        Confirm
+                                                    {/* Confirm button */}
+                                                    <button 
+                                                        type='submit'
+                                                        className='btn btn-primary mt-2'
+                                                        onClick={(e) => handleScoreSubmit(e, roundIndex, matchIndex)}
+                                                        disabled={match.status === 'completed'} // Disable if match is completed
+                                                        >
+                                                        {match.status === 'completed' ? 'Submitted': 'Confirm'}
                                                     </button>
+
+                                                    { match.status === 'completed' && (
+                                                        <small className = 'text-muted mt-1'>Match already Submitted</small>
+                                                    )}
                                                 </div>
                                             </div>
                                         );
