@@ -284,18 +284,22 @@ module.exports.updateGroupStageMatchScores = async (req, res) => {
         const updatedMatchScores = determineGroupMatchResult(
             participant1,
             participant2,
-            { participant1: participant1Score, participant2: participant2Score}
+            { participant1: participant1Score, participant2: participant2Score},
+            match
         );
 
         //save updates
         await updatedMatchScores.participant1.save();
         await updatedMatchScores.participant2.save();
+        match.status = 'completed'; // Mark match as completed
+        
         await match.save();
         await tournament.save();
 
         // re-fetch updated participants from MongoDB after saving
         const updatedParticipant1 = await Participant.findById(participant1._id);
         const updatedParticipant2 = await Participant.findById(participant2._id);
+        
 
         console.log("✅ Updated Participant 1 in MongoDB:", updatedParticipant1);
         console.log("✅ Updated Participant 2 in MongoDB:", updatedParticipant2);
@@ -308,7 +312,7 @@ module.exports.updateGroupStageMatchScores = async (req, res) => {
             updatedMatchScores: [updatedMatchScores.participant1, updatedMatchScores.participant2]
         })
     } catch (err) {
-        console.error('Error:', err);
+        console.error("❌ BACKEND ERROR in updateGroupStageMatchScores:", err);
         res.status(500).json({ message: "Something went wrong", error: err });
     }
 };
