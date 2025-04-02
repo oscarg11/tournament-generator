@@ -37,7 +37,7 @@ const MatchSchema = new mongoose.Schema({
     round: {type: Number, required: true },
     startTime: { type: Date, default: Date.now },
     endTime: { type: Date, default: Date.now },
-    result: { type: String, enum: ['pending', 'draw', 'win', 'loss'], default: 'pending' }
+    status: { type: String, enum: ['pending', 'completed'], default: 'pending' }
 }, {timestamps: true});
 
 const TournamentSchema = new mongoose.Schema({
