@@ -1,7 +1,10 @@
 //Backend helper functions
 const { shuffle, createGroups, createGroupStageMatches, determineGroupMatchResult } = require("../helpers/tournamentFunctions");
 
-const { Tournament,Participant, Match}= require("../models/tournament.model");
+//import models
+const Tournament = require("../models/tournament.model");
+const Participant = require("../models/participant.model");
+const Match = require("../models/match.model");
 
 //create a tournament
 module.exports.createTournament = async (req, res) => {
