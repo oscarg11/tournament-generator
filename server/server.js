@@ -16,4 +16,8 @@ UserRoutes(app)
 const TournamentRoutes = require('./routes/tournament.routes')
 TournamentRoutes(app);
 
+//match routes
+const MatchRoutes = require('./routes/match.routes')
+MatchRoutes(app);
+
 app.listen( port, () => console.log(`Listening on port: ${port}`));
