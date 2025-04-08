@@ -5,5 +5,5 @@ module.exports = app => {
     app.get('/api/dashboard/:id', TournamentController.findOneTournament);
     app.post('/api/tournaments/create-tournament', TournamentController.createTournament );
     app.patch('/api/tournaments/:id', TournamentController.updateTournament);
-    app.delete('/api/tournaments/:id', TournamentController.deleteTournament);
+    app.delete('/api/tournaments/all-tournaments/:id', TournamentController.deleteTournament);
 };
