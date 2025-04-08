@@ -6,7 +6,7 @@ const Tournament = require("../models/tournament.model");
 const Participant = require("../models/participant.model");
 const Match = require("../models/match.model");
 
-//create a tournament
+//CREATE a tournament
 module.exports.createTournament = async (req, res) => {
     try {
         const { tournamentName, format, numberOfGroupStageLegs, numberOfParticipants, participants } = req.body;
@@ -67,7 +67,7 @@ module.exports.createTournament = async (req, res) => {
     }
 }
 
-//find all tournaments
+//find ALL tournaments
 module.exports.findAllTournaments = async (req, res) => {
     try {
         const Alltournaments = await Tournament.find()
@@ -90,7 +90,7 @@ module.exports.findAllTournaments = async (req, res) => {
     }
 }
 
-//find one tournament
+//find ONE tournament
 module.exports.findOneTournament = async (req,res) => {
     try {
         const tournament = await Tournament.findById(req.params.id)
@@ -115,7 +115,7 @@ module.exports.findOneTournament = async (req,res) => {
 }
 
 
-//update or edit tournament
+//UPDATE or edit tournament
 module.exports.updateTournament = (req, res) => {
     Tournament.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true })
         .populate('participants')
@@ -130,11 +130,11 @@ module.exports.updateTournament = (req, res) => {
         });
 }
 
-//delete tournament
+//DELETE tournament
 module.exports.deleteTournament = (req, res) => {
     Tournament.findByIdAndDelete(req.params.id)
         .then(result => {
-            console.log("Tournament deleted successfully!");
+            console.log("TOURNAMENT DELETED SUCCESSFULLY!");
             res.json({ result: result });
         })
         .catch(err => {
@@ -142,7 +142,6 @@ module.exports.deleteTournament = (req, res) => {
             res.json({ message: "Something went wrong", error: err });
         });
 }
-
 
 
 // Load tournament data with populated participants and matches
