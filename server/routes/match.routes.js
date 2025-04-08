@@ -4,6 +4,7 @@ module.exports = app => {
     // save matches
     app.patch('/api/tournaments/:id/save-matches', MatchController.saveMatches);
     
+    // get group stage matches
     app.get('/api/tournaments/:id/group-stage-matches', MatchController.getGroupStageMatches);
     
     // update group stage match scores
