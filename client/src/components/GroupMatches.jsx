@@ -10,6 +10,39 @@ const GroupMatches = ({tournamentData, setTournamentData}) => {
         return count;
     }, {});
 
+//update/reset match
+const resetMatch = (participants, matches) => {
+    //reset all participants stats
+    participants.forEach(p => {
+        p.points = 0;
+        p.wins = 0;
+        p.losses = 0;
+        p.draws = 0;
+        p.goalsScored = 0;
+        p.goalsAgainst = 0;
+        p.goalDifference = 0;
+        p.matchesPlayed = 0;
+        p.matchHistory = [];
+    })
+
+    // for each match thats not pending:
+    matches.forEach(match => {
+        if(match.status === 'pending') return;
+
+        const [p1, p2] = match.participants;
+        //find participants 1 and 2
+        const participant1 = participants.find(p => p._id.toString() === p1.participantId.toString());
+        const participant2 = participants.find(p => p._id.toString() === p2.participantId.toString());
+
+        //run determineMatchResult()
+        determineGroupMatchResult(participant1, participant2, {
+            participant1: p1.score,
+            participant2: p2.score
+        }, match);
+
+    })
+}
+
 // onChange handler
 const onChangeHandler = (e, roundIndex, matchIndex, participantIndex) => {
 const updatedMatches = [...matchData];
@@ -167,6 +200,15 @@ const fetchGroupMatches = async () => {
                                                     { match.status === 'completed' && (
                                                         <small className = 'text-muted mt-1'>Match already Submitted</small>
                                                     )}
+
+                                                    {/* reset match button */}
+                                                    <button 
+                                                        type='button'
+                                                        className='btn btn-secondary mt-2 ms-2'
+                                                        onClick={() => resetMatch(tournamentData.participants, matchData)}>
+                                                            Reset
+                                                        </button>
+                                                    
                                                 </div>
                                             </div>
                                         );
