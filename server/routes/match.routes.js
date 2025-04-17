@@ -9,5 +9,8 @@ module.exports = app => {
     
     // update group stage match scores
     app.put('/api/tournaments/:tournamentId/group-matches/:roundIndex/:matchIndex', MatchController.updateGroupStageMatchScores);
+
+    // reset group stage match
+    app.put('/api/tournaments/:tournamentId/reset-group-match/:roundIndex/:matchIndex', MatchController.resetGroupStageMatch);
 }
 
