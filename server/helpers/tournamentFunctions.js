@@ -109,20 +109,14 @@ const determineGroupMatchResult = (participant1, participant2, score,match) => {
         const POINTS_PER_WIN = 3;
         const POINTS_PER_DRAW = 1;
         const POINTS_PER_LOSS = 0;
-
+        console.log("From determineGroupMatchResult function");
         console.log("Before Match updates");
-       // console.log("Participant1", participant1);
-        //console.log("Participant2", participant2);
         console.log("Received Score Object:", score);
-    console.log("Participant 1 Score:", score.participant1);
-    console.log("Participant 2 Score:", score.participant2);
+        console.log("Participant 1 Score:", score.participant1);
+        console.log("Participant 2 Score:", score.participant2);
         console.log("Participant 1 - Goals Scored:", participant1.goalsScored, "Goals Against:", participant1.goalsAgainst);
-            console.log("Participant 2 - Goals Scored:", participant2.goalsScored, "Goals Against:", participant2.goalsAgainst);
-        
-        // check if match is already completed
-        console.log("Match status BEFORE check:", match.status);
-        // 
-        if(match.status === 'pending'){
+        console.log("Participant 2 - Goals Scored:", participant2.goalsScored, "Goals Against:", participant2.goalsAgainst);
+
 
             //participant 1 wins
             if(score.participant1 > score.participant2){
@@ -186,11 +180,57 @@ const determineGroupMatchResult = (participant1, participant2, score,match) => {
             }
     
             console.log("After Update:");
-            console.log("Participant 1 - Goals Scored:", participant1.goalsScored, "Goals Against:", participant1.goalsAgainst, "Goal Difference:", participant1.goalDifference);
-            console.log("Participant 2 - Goals Scored:", participant2.goalsScored, "Goals Against:", participant2.goalsAgainst, "Goal Difference:", participant2.goalDifference);
+            console.log("Participant1 - Goals Scored:", participant1.goalsScored, "Goals Against:", participant1.goalsAgainst, "Goal Difference:", participant1.goalDifference);
+            console.log("Participant2 - Goals Scored:", participant2.goalsScored, "Goals Against:", participant2.goalsAgainst, "Goal Difference:", participant2.goalDifference);
             
             return {participant1, participant2}
+    
+}
+
+//Recalculate all participants stats when one matches score is reset
+const recalculateAllParticipantStats = async (tournament) => {
+    const updatedParticipants = new Map();
+    
+    //reset all participants stats
+    for(const p of tournament.participants){
+        p.points = 0;
+        p.wins =0;
+        p.losses = 0;
+        p.draws = 0;
+        p.goalsScored = 0;
+        p.goalsAgainst = 0;
+        p.goalDifference =0;
+        p.matchesPlayed = 0;
+        p.matchHistory = [];
+    }
+
+    //re-apply match results from completed matches
+    for(const match of tournament.matches){
+        if(match.status !== 'completed') continue;
+
+        //find participants
+        const [p1, p2] = match.participants;
+        const participant1 = tournament.participants.find(
+            p => p._id.toString() === p1.participantId.toString()
+        );
+        const participant2 = tournament.participants.find(
+            p => p._id.toString() === p2.participantId.toString()
+        );
+
+        if(participant1 && participant2){
+            determineGroupMatchResult(participant1, participant2, {
+                participant1: p1.score,
+                participant2: p2.score
+            }, match);
         }
+        updatedParticipants.set(participant1._id.toString(), participant1);
+        updatedParticipants.set(participant2._id.toString(), participant2);
+
+    }
+    //save each participant only once
+    for(const participant of updatedParticipants.values()){
+        await participant.save();
+    }
 }
 
 
@@ -199,5 +239,6 @@ module.exports = {
     createGroups,
     shuffle,
     createGroupStageMatches,
-    determineGroupMatchResult
+    determineGroupMatchResult,
+    recalculateAllParticipantStats
 }
