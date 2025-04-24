@@ -69,7 +69,7 @@ module.exports.saveMatches = async (req, res) => {
     }
 };
 
-//update group stage match scores and update each participants stats
+//UPDATE group stage match scores and update each participants stats
 module.exports.updateGroupStageMatchScores = async (req, res) => {
     //validate request so that both scores are provided
     const { participant1Score, participant2Score } = req.body;
@@ -124,7 +124,7 @@ module.exports.updateGroupStageMatchScores = async (req, res) => {
 
         console.log("Updated Group Match Scores:", match.participants);
 
-        //get participants using using the populated participants array
+        //get participants using the populated participants array
         const participant1id = match.participants[0].participantId.toString();
         const participant2id = match.participants[1].participantId.toString();
 
@@ -136,14 +136,15 @@ module.exports.updateGroupStageMatchScores = async (req, res) => {
         }
         console.log("Participants found:", participant1.participantName, participant2.participantName);
 
-        
-        
         // calculate or re-calculate stats from all completed matches
         await recalculateAllParticipantStats(tournament)
 
         //save updates
         await match.save();
         await tournament.save();
+
+        //check if updatedAt changes
+        console.log("Tournament saved, updatedAt:", tournament.updatedAt)
 
         //success response
         return res.json({
@@ -179,11 +180,14 @@ module.exports.resetGroupStageMatch = async (req, res) => {
         }
 
         //reset match values
+        
         match.participants[0].score = 0;
         match.participants[1].score = 0;
         match.status = 'pending';
-        //reset participant and persist updated stats
+
+        // Instead of subtracting old match stats, we recalculate everything from scratch
         recalculateAllParticipantStats(tournament)
+
         await match.save?.(); // Save the match to db
         await tournament.save(); // Save the tournament to db
     

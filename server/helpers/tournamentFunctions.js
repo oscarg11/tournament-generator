@@ -187,11 +187,22 @@ const determineGroupMatchResult = (participant1, participant2, score,match) => {
     
 }
 
-//Recalculate all participants stats when one matches score is reset
+/**
+ * Recalculate all participant stats by clearing existing stats and 
+ * and re-applyhing every completed match's results
+ * 
+ * This avoids the complexity and risk of manually undoing one match at a time.
+ * 
+ * When a match's score is reset all stats are wiped, and then re-built
+ * from the completed match results to ensure total accuracy.
+ * 
+ * only matches with status === 'completed' are used to recalculate stats.
+ * 
+ */
 const recalculateAllParticipantStats = async (tournament) => {
     const updatedParticipants = new Map();
-    
-    //reset all participants stats
+
+    //reset all participant stats to zero
     for(const p of tournament.participants){
         p.points = 0;
         p.wins =0;
@@ -206,9 +217,10 @@ const recalculateAllParticipantStats = async (tournament) => {
 
     //re-apply match results from completed matches
     for(const match of tournament.matches){
+        //skip matches that havent been played yet
         if(match.status !== 'completed') continue;
 
-        //find participants
+        //get two participants from this match
         const [p1, p2] = match.participants;
         const participant1 = tournament.participants.find(
             p => p._id.toString() === p1.participantId.toString()
@@ -217,20 +229,25 @@ const recalculateAllParticipantStats = async (tournament) => {
             p => p._id.toString() === p2.participantId.toString()
         );
 
+        //Re-apply this match's results using the stat logic
         if(participant1 && participant2){
             determineGroupMatchResult(participant1, participant2, {
                 participant1: p1.score,
                 participant2: p2.score
             }, match);
         }
+        //add each participant to the updatedParticipants map using their _id
+        //to ensure each participant is only saved once
         updatedParticipants.set(participant1._id.toString(), participant1);
         updatedParticipants.set(participant2._id.toString(), participant2);
 
     }
-    //save each participant only once
+    //save each updated participant to the db
+    //using map.values() ensures each participant is only saved once in case they aopeared in multiple matches
     for(const participant of updatedParticipants.values()){
         await participant.save();
     }
+    console.log("Match results up to date for all participants!");
 }
 
 
