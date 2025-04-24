@@ -1,8 +1,10 @@
 import React, {useState, useEffect} from 'react'
 import axios from 'axios'
 
-const GroupMatches = ({tournamentData, setTournamentData}) => {
+const GroupMatches = ({tournamentData, setTournamentData, refreshData}) => {
     const [matchData, setMatchData] = useState([]);
+    console.log("📥 tournamentData.updatedAt in GroupMatches:", tournamentData.updatedAt);
+
     
     //participant lookup function to get Participant name and team name
     const participantLookup = tournamentData.participants.reduce((count, participant) => {
@@ -12,37 +14,32 @@ const GroupMatches = ({tournamentData, setTournamentData}) => {
 
 // RESET/UPDATE single match
 const resetMatch = async (roundIndex, matchIndex) => {
+    console.log("🔴 resetMatch triggered");
     try{
         await axios.put(
             `http://localhost:8000/api/tournaments/${tournamentData._id}/reset-group-match/${roundIndex}/${matchIndex}`
         );
-        console.log("Match reset successfully on backend");
+        console.log("Match reset successfully ✅");
 
-        //Re-fetch updated match data
-        const matchResponse = await axios.get(
-            `http://localhost:8000/api/tournaments/${tournamentData._id}/group-stage-matches`
-        );
+         //locally update match data state for instant UI refresh
+        const updatedMatches = [...matchData];//shallow copy of matchData
+        updatedMatches[roundIndex] = [...updatedMatches[roundIndex]]; //shallow copy of the round
 
-        //check if match data is valid
-        if(matchResponse.data?.matches){ 
-            setMatchData(matchResponse.data.matches);
-            console.log("✅ Refetched updated match data")
-        }else{
-            console.warn("⚠️ No match data found in response");
-        }
+        const originalMatch = updatedMatches[roundIndex][matchIndex];
 
-        //Refetch full tournament data (to get recalculated participant stats)
-        const tournamentResponse = await axios.get(
-            `http://localhost:8000/api/dashboard/${tournamentData._id}`
-        );
+        // deep copy + reset the specific match
+        const resetMatch = {
+            ...originalMatch,
+            participants: [
+                { ...originalMatch.participants[0], score: 0},
+                { ...originalMatch.participants[1], score: 0},
+            ],
+            status: 'pending'
+        };
 
-        //check if tournament data is valid
-        if(tournamentResponse.data?.oneTournament){
-            setTournamentData(tournamentResponse.data.oneTournament);
-            console.log("✅ Refetched updated tournament data");
-        }else{
-            console.warn("⚠️ No tournament data found in response");
-        }
+        updatedMatches[roundIndex][matchIndex] = resetMatch;
+        setMatchData(updatedMatches); // trigger UI re-render
+
     }catch(err){
         console.error("❌Error resetting match:", err.response?.data || err.message || err);
     }
@@ -59,56 +56,44 @@ setMatchData(updatedMatches);
 //handle score submit
 const handleScoreSubmit = async (e, roundIndex, matchIndex) =>{
     e.preventDefault();
-    
+    console.log("🟢 handleScoreSubmit triggered");
     try {
-        console.log("🏗️ Entire matchData structure:", matchData);
-        
-        //make sure matchData and round are valid arrays
-        if (!Array.isArray(matchData)) {
-            console.error("⚠️ matchData is not an array yet:", matchData);
-            return;
-        }
-        if (!Array.isArray(matchData[roundIndex])) {
-            console.error("⚠️ matchData[roundIndex] is not an array:", matchData[roundIndex]);
+        //safety check
+        if(!Array.isArray(matchData) || !Array.isArray(matchData[roundIndex])){
+            console.warn("⚠️ Invalid matchData structure");
             return;
         }
 
-        // ✅ get the specific match object from the round + match indices
         const matchToSubmit = matchData[roundIndex][matchIndex];
-        console.log("matchToSubmit object:", matchToSubmit);
 
-        // make sure match and participants exist
-        if (!matchToSubmit || !matchToSubmit.participants) {
-            console.error("⚠️ Invalid match or participants data", matchToSubmit);
-            return;
-        }
-
-        // ✅ create the score object to send to the backend
         const matchScores = {
             participant1Score: matchToSubmit.participants[0]?.score ?? 0,
             participant2Score: matchToSubmit.participants[1]?.score ?? 0
-        }
-        console.log("Match scores to submit", matchScores);
-    
+        };
+
         //✅ update backend with the new match data
         await axios.put(`http://localhost:8000/api/tournaments/${tournamentData._id}/group-matches/${roundIndex}/${matchIndex}`,
             matchScores
         );
         console.log("Match Updated Successfully ✅")
 
-        //✅ re-fetch updated match data to reflect changes on UI
-        const response = await axios.get(
-            `http://localhost:8000/api/tournaments/${tournamentData._id}/group-stage-matches`
-        );
-        console.log("Fetched refetched match data:", response.data.matches);
+        //locally update match data state for instant UI refresh
+        const updatedMatches = [...matchData];//shallow copy of matchData
+        updatedMatches[roundIndex] = [...updatedMatches[roundIndex]]; //shallow copy of the round
 
-        // check if the backend returned valid match data
-        if(response.data?.matches){
-            console.log("Refetched updated match data");
-            setMatchData(response.data.matches);
-        }else{
-            console.warn("No match data found in response");
-        }
+        // deep copy + update the specific match
+        const originalMatch = updatedMatches[roundIndex][matchIndex];
+        const updatedMatch = {
+            ...originalMatch,
+            participants: [
+                { ...originalMatch.participants[0], score: matchScores.participant1Score},
+                { ...originalMatch.participants[1], score: matchScores.participant2Score},
+            ],
+            status: 'completed'
+        };
+
+        updatedMatches[roundIndex][matchIndex] = updatedMatch;
+        setMatchData(updatedMatches);
     
     } catch (err) {
         console.error("Error updating match data:", err);
@@ -117,27 +102,36 @@ const handleScoreSubmit = async (e, roundIndex, matchIndex) =>{
 
 useEffect(() => {
 const fetchGroupMatches = async () => {
+    
     try {
         if (!tournamentData?._id) return;
+        console.log("🎯 useEffect triggered by updatedAt in GroupMatches:", tournamentData.updatedAt);
 
         console.log("Fetching group matches for tournament:", tournamentData._id);
 
         const response = await axios.get(`http://localhost:8000/api/tournaments/${tournamentData._id}/group-stage-matches`);
         console.log("Fetched group matches:", response.data.matches);
 
-        setMatchData(response.data.matches || []);
+        setMatchData([...response.data.matches]);
     } catch (err) {
         console.error("Error fetching group matches:", err);
         setMatchData([]);
     }
 }
     fetchGroupMatches();
-    }, [tournamentData._id]);
+    }, [tournamentData._id, tournamentData.updatedAt]);
 
+    useEffect(() => {
+        console.log("🎯 matchData updated:", matchData);
+      }, [matchData]); // ✅ this just logs it, doesn't fetch again
+      
+      console.log("🧠 GroupMatches render");
+      console.log("📊 matchData:", matchData);
+      console.log("📅 tournamentData.updatedAt:", tournamentData.updatedAt);
 
     return (
         <div>
-            <form onSubmit={(e) => e.preventDefault()}>
+            <div>
                 <h2>Group Matches</h2>
                 {/* check if matchData exists and has matches */}
                 {Array.isArray(matchData) && matchData.length > 0 ? (
@@ -158,14 +152,14 @@ const fetchGroupMatches = async () => {
                                         //Define participant details
                                         const participant1 = participantLookup[match.participants[0]?.participantId] || {};
                                         const participant2 = participantLookup[match.participants[1]?.participantId] || {};
-
+                                        console.log(`Match ${match.matchNumber} status:`, match.status);
                                         return (
                                             <div key={matchIndex} className='col-md-6'>
 
                                                 {/* Match Card */}
                                                 <div 
                                                 className={`card p-3 align-items-center`}
-                                                style={{ minHeight: '200px', opacity: match.status === 'complete' ? 0.5:1}}
+                                                style={{ minHeight: '200px', opacity: match.status === 'completed' ? 0.5:1}}
                                                 >
                                                     <div className='card-body d-flex'>
 
@@ -194,7 +188,7 @@ const fetchGroupMatches = async () => {
 
                                                     {/* Confirm button */}
                                                     <button 
-                                                        type='submit'
+                                                        type='button'
                                                         className='btn btn-primary mt-2'
                                                         onClick={(e) => handleScoreSubmit(e, roundIndex, matchIndex)}
                                                         disabled={match.status === 'completed'} // Disable if match is completed
@@ -205,6 +199,7 @@ const fetchGroupMatches = async () => {
                                                     { match.status === 'completed' && (
                                                         <small className = 'text-muted mt-1'>Match already Submitted</small>
                                                     )}
+                                                    
 
                                                     {/* reset match button */}
                                                     <button 
@@ -223,7 +218,7 @@ const fetchGroupMatches = async () => {
                         );
                     })
                 ) : <p>No matches available.</p>}
-            </form>
+            </div>
         </div>
     );
 };
