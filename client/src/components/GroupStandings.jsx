@@ -1,5 +1,6 @@
 import React from 'react'
 
+
 const GroupStandings = ({groups = [], matches = []}) => {
   if (!Array.isArray(groups)) {
     console.error("Error: `groups` is not an array", groups);
@@ -101,7 +102,6 @@ const GroupStandings = ({groups = [], matches = []}) => {
     return headToHeadComparison(participantA, participantB, matches);
   }
 
-  console.log("Matches IN GROUP Standings AFTER FUNCTION RUNS:", matches);
 
   
   return (
