@@ -35,7 +35,7 @@ const createGroups = (participantIds) => {
     return groups;
 };
 
-// Generate matches by pairing participants in each group for multiple rounds
+// GENERATE MATCHES BY PAIRING PARTICIPANTS IN EACH GROUP FOR MULTIPLE ROUNDS
 const createGroupStageMatches = (groups, numberOfGroupStageLegs) => {
     console.log("Generating group stage matches...");
 
@@ -104,7 +104,7 @@ const createGroupStageMatches = (groups, numberOfGroupStageLegs) => {
 
 
 
-    //determin Group match result
+    //DETERMIN GROUP MATCH RESULT
 const determineGroupMatchResult = (participant1, participant2, score,match) => {
         const POINTS_PER_WIN = 3;
         const POINTS_PER_DRAW = 1;
@@ -112,11 +112,10 @@ const determineGroupMatchResult = (participant1, participant2, score,match) => {
         console.log("From determineGroupMatchResult function");
         console.log("Before Match updates");
         console.log("Received Score Object:", score);
-        console.log("Participant 1 Score:", score.participant1);
-        console.log("Participant 2 Score:", score.participant2);
-        console.log("Participant 1 - Goals Scored:", participant1.goalsScored, "Goals Against:", participant1.goalsAgainst);
-        console.log("Participant 2 - Goals Scored:", participant2.goalsScored, "Goals Against:", participant2.goalsAgainst);
-
+        console.log("Participant1 Score:", score.participant1);
+        console.log("Participant2 Score:", score.participant2);
+        console.log("Participant1 - Goals Scored:", participant1.goalsScored, "Goals Against:", participant1.goalsAgainst);
+        console.log("Participant2 - Goals Scored:", participant2.goalsScored, "Goals Against:", participant2.goalsAgainst);
 
             //participant 1 wins
             if(score.participant1 > score.participant2){
@@ -186,6 +185,104 @@ const determineGroupMatchResult = (participant1, participant2, score,match) => {
             return {participant1, participant2}
     
 }
+
+// SORT GROUP STANDINGS
+const sortGroupStandings = (participantA,participantB, matches) => {
+    // if points are not equal, sort by points
+if(participantB.points !== participantA.points){
+    return participantB.points - participantA.points;
+} 
+if(participantB.goalDifference !== participantA.goalDifference){
+    return participantB.goalDifference - participantA.goalDifference;
+} 
+
+if(participantB.goalsScored !== participantA.goalsScored){
+    return participantB.goalsScored - participantA.goalsScored;
+} 
+// If still tied, use head-to-head comparison
+return headToHeadComparison(participantA, participantB, matches);
+}
+
+
+//HEAD TO HEAD COMPARISON - THIS FUNCTION IS CALLED BY THE SORT FUNCTION
+// TO DETERMINE THE FINAL TIE BREAKER
+const headToHeadComparison = (participantA, participantB, matches) => {
+// Check if there are any matches to compare
+if(!Array.isArray(matches) || matches.length === 0){
+    console.warn("No matches have been played yet");
+    return 0;
+}
+// Filter in matches between the two participants
+const filterHeadToHeadMatches = matches.filter(match => {
+    const ids = match.participants.map(p => p.participantId.toString());
+    return ids.includes(participantA.participantId.toString())
+    && ids.includes(participantB.participantId.toString());
+})
+
+// Initialize stats for both participants
+let statsA = { points: 0, goalsScored: 0, goalDifference: 0};
+let statsB = { points: 0, goalsScored: 0, goalDifference: 0};
+
+//loop through head to head matches
+for(const match of filterHeadToHeadMatches) {
+    const [p1, p2] = match.participants;
+
+    // convert participantId to string for comparison
+    // This is to ensure we are comparing the correct participants
+    const p1Id = p1.participantId.toString();
+    const p2Id = p2.participantId.toString();
+    const aId = participantA._id.toString();
+    const bId = participantB._id.toString();
+
+    let aScore, bScore;
+
+    // match participants to the correct ids
+    if(p1Id === aId && p2Id === bId){
+    aScore = p1.score;
+    bScore = p2.score;
+    }else if(p1Id === bId && p2Id === aId){
+    aScore = p2.score;
+    bScore = p1.score;
+    }else{
+    continue;
+    }
+
+    // Update stats based on match result
+    if(aScore > bScore){
+    statsA.points += 3;
+    } else if(aScore < bScore){
+    statsB.points += 3;
+    } else {
+    statsA.points += 1;
+    statsB.points += 1;
+    }
+
+    // Update goals scored and goal difference
+    statsA.goalsScored += aScore;
+    statsB.goalsScored += bScore;
+
+    statsA.goalDifference += aScore - bScore;
+    statsB.goalDifference += bScore - aScore;
+}
+
+    // Update stats
+    if(statsA.points !== statsB.points){
+    return statsB.points - statsA.points;
+    }
+    if(statsA.goalDifference !== statsB.goalDifference){
+    return statsB.goalDifference - statsA.goalDifference;
+    }
+    if(statsA.goalsScored !== statsB.goalsScored){
+    return statsB.goalsScored - statsA.goalsScored;
+    }
+
+    return 0; //still tied
+};
+
+// WRAPPER FUNCTION TO GET SORTED LIST OF GROUP STANDINGS
+const getSortedGroupStandings = (participants, matches) => {
+    return participants.sort((a, b) => sortGroupStandings(a, b, matches));
+};
 
 /**
  * Recalculate all participant stats by clearing existing stats and 
@@ -257,5 +354,8 @@ module.exports = {
     shuffle,
     createGroupStageMatches,
     determineGroupMatchResult,
+    sortGroupStandings,
+    headToHeadComparison,
+    getSortedGroupStandings,
     recalculateAllParticipantStats
 }
