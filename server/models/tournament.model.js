@@ -35,6 +35,9 @@ const TournamentSchema = new mongoose.Schema({
     matches: [
         { type: mongoose.Schema.Types.ObjectId, ref: 'Match' }
     ],
+    finalists: [
+        { type: mongoose.Schema.Types.ObjectId, ref: 'Participant' }
+    ],
     
 }, {timestamps: true});
 
