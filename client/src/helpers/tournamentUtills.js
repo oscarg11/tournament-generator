@@ -1,90 +1,96 @@
+// 📝 NOTE: This is a DUPLICATE of the backend tournamentFunctions.js helpers
 
-//determin Group match result
-export function determineGroupMatchResult (participant1, participant2, score,match) {
-  const POINTS_PER_WIN = 3;
-  const POINTS_PER_DRAW = 1;
-  const POINTS_PER_LOSS = 0;
+// SORT GROUP STANDINGS
+const sortGroupStandings = (participantA,participantB, matches) => {
+    // if points are not equal, sort by points
+if(participantB.points !== participantA.points){
+    return participantB.points - participantA.points;
+} 
+if(participantB.goalDifference !== participantA.goalDifference){
+    return participantB.goalDifference - participantA.goalDifference;
+} 
 
-  console.log("Before Match updates");
- // console.log("Participant1", participant1);
-  //console.log("Participant2", participant2);
-  console.log("Received Score Object:", score);
-console.log("Participant 1 Score:", score.participant1);
-console.log("Participant 2 Score:", score.participant2);
-  console.log("Participant 1 - Goals Scored:", participant1.goalsScored, "Goals Against:", participant1.goalsAgainst);
-      console.log("Participant 2 - Goals Scored:", participant2.goalsScored, "Goals Against:", participant2.goalsAgainst);
-  
-  // check if match is already completed
-  console.log("Match status BEFORE check:", match.status);
-  // 
-  if(match.status === 'pending'){
-
-      //participant 1 wins
-      if(score.participant1 > score.participant2){
-          participant1.matchesPlayed += 1;
-          participant1.wins += 1;
-          participant1.goalsScored += score.participant1;
-          participant1.goalsAgainst += score.participant2;
-          participant1.goalDifference = participant1.goalsScored - participant1.goalsAgainst;
-          participant1.points += POINTS_PER_WIN;
-          participant1.matchHistory.push("W")
-
-          participant2.matchesPlayed += 1;
-          participant2.losses += 1;
-          participant2.goalsScored += score.participant2;
-          participant2.goalsAgainst += score.participant1;
-          participant2.goalDifference = participant2.goalsScored - participant2.goalsAgainst;
-          participant2.points += POINTS_PER_LOSS;
-          participant2.matchHistory.push("L")
-
-          match.status = 'completed'; // Update match status to completed
-      
-      //participant 2 wins
-      } else if(score.participant1 < score.participant2){
-          participant2.matchesPlayed += 1;
-          participant2.wins += 1;
-          participant2.goalsScored += score.participant2;
-          participant2.goalsAgainst += score.participant1;
-          participant2.goalDifference = participant2.goalsScored - participant2.goalsAgainst;
-          participant2.points += POINTS_PER_WIN;
-          participant2.matchHistory.push("W")
-
-          participant1.matchesPlayed += 1;
-          participant1.losses += 1;
-          participant1.goalsScored += score.participant1;
-          participant1.goalsAgainst += score.participant2;
-          participant1.goalDifference = participant1.goalsScored - participant1.goalsAgainst;
-          participant1.points += POINTS_PER_LOSS;
-          participant1.matchHistory.push("L")
-
-          match.status = 'completed'; // Update match status to completed
-
-      //draw
-      }else{
-          participant1.matchesPlayed += 1;
-          participant1.draws += 1;
-          participant1.goalsScored += score.participant1;
-          participant1.goalsAgainst += score.participant2;
-          participant1.goalDifference = participant1.goalsScored - participant1.goalsAgainst;
-          participant1.points += POINTS_PER_DRAW;
-          participant1.matchHistory.push("D")
-
-          participant2.matchesPlayed += 1;
-          participant2.draws += 1;
-          participant2.goalsScored += score.participant2;
-          participant2.goalsAgainst += score.participant1;
-          participant2.goalDifference = participant2.goalsScored - participant2.goalsAgainst;
-          participant2.points += POINTS_PER_DRAW;
-          participant2.matchHistory.push("D")
-
-          match.status = 'completed'; // Update match status to completed
-      }
-
-      console.log("After Update:");
-      console.log("Participant 1 - Goals Scored:", participant1.goalsScored, "Goals Against:", participant1.goalsAgainst, "Goal Difference:", participant1.goalDifference);
-      console.log("Participant 2 - Goals Scored:", participant2.goalsScored, "Goals Against:", participant2.goalsAgainst, "Goal Difference:", participant2.goalDifference);
-      
-      return {participant1, participant2}
-  }
+if(participantB.goalsScored !== participantA.goalsScored){
+    return participantB.goalsScored - participantA.goalsScored;
+} 
+// If still tied, use head-to-head comparison
+return headToHeadComparison(participantA, participantB, matches);
 }
 
+
+//HEAD TO HEAD COMPARISON - THIS FUNCTION IS CALLED BY THE SORT FUNCTION
+// TO DETERMINE THE FINAL TIE BREAKER
+const headToHeadComparison = (participantA, participantB, matches) => {
+// Check if there are any matches to compare
+if(!Array.isArray(matches) || matches.length === 0){
+    console.warn("No matches have been played yet");
+    return 0;
+}
+// Filter in matches between the two participants
+const filterHeadToHeadMatches = matches.filter(match => {
+    const ids = match.participants.map(p => p.participantId.toString());
+    return ids.includes(participantA.participantId.toString())
+    && ids.includes(participantB.participantId.toString());
+})
+
+// Initialize stats for both participants
+let statsA = { points: 0, goalsScored: 0, goalDifference: 0};
+let statsB = { points: 0, goalsScored: 0, goalDifference: 0};
+
+//loop through head to head matches
+for(const match of filterHeadToHeadMatches) {
+    const [p1, p2] = match.participants;
+
+    // convert participantId to string for comparison
+    // This is to ensure we are comparing the correct participants
+    const p1Id = p1.participantId.toString();
+    const p2Id = p2.participantId.toString();
+    const aId = participantA._id.toString();
+    const bId = participantB._id.toString();
+
+    let aScore, bScore;
+
+    // match participants to the correct ids
+    if(p1Id === aId && p2Id === bId){
+    aScore = p1.score;
+    bScore = p2.score;
+    }else if(p1Id === bId && p2Id === aId){
+    aScore = p2.score;
+    bScore = p1.score;
+    }else{
+    continue;
+    }
+
+    // Update stats based on match result
+    if(aScore > bScore){
+    statsA.points += 3;
+    } else if(aScore < bScore){
+    statsB.points += 3;
+    } else {
+    statsA.points += 1;
+    statsB.points += 1;
+    }
+
+    // Update goals scored and goal difference
+    statsA.goalsScored += aScore;
+    statsB.goalsScored += bScore;
+
+    statsA.goalDifference += aScore - bScore;
+    statsB.goalDifference += bScore - aScore;
+}
+
+    // Update stats
+    if(statsA.points !== statsB.points){
+    return statsB.points - statsA.points;
+    }
+    if(statsA.goalDifference !== statsB.goalDifference){
+    return statsB.goalDifference - statsA.goalDifference;
+    }
+    if(statsA.goalsScored !== statsB.goalsScored){
+    return statsB.goalsScored - statsA.goalsScored;
+    }
+
+    return 0; //still tied
+};
+
+export { sortGroupStandings, headToHeadComparison };
