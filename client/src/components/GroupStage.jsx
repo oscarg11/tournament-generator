@@ -21,7 +21,6 @@ const GroupStage = ({tournamentData, setTournamentData, matchData, setMatchData,
                     <button className="btn btn-light mx-2"
                     onClick={() => {
                       localStorage.setItem("activeTab", "standings");
-                      refreshData()
                       setActive(true)
                     }}>
                       Group Standings
@@ -31,7 +30,6 @@ const GroupStage = ({tournamentData, setTournamentData, matchData, setMatchData,
                     <button className="btn btn-light mx-2" 
                     onClick={() => {
                         localStorage.setItem("activeTab", "matches");
-                        refreshData();         // ✅ fetch latest
                         setActive(false);      // show matches
                     }}>
                       Group Matches

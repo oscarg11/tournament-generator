@@ -1,32 +1,35 @@
 import React, {useState, useEffect} from 'react'
 import axios from 'axios'
 
-const GroupMatches = ({tournamentData, setTournamentData, refreshData}) => {
+const GroupMatches = ({tournamentData, setTournamentData}) => {
     const [matchData, setMatchData] = useState([]);
     console.log("📥 tournamentData.updatedAt in GroupMatches:", tournamentData.updatedAt);
 
-    
     //participant lookup function to get Participant name and team name
     const participantLookup = tournamentData.participants.reduce((count, participant) => {
         count[participant._id] = participant;
         return count;
     }, {});
 
-// RESET/UPDATE single match
-const resetMatch = async (roundIndex, matchIndex) => {
-    console.log("🔴 resetMatch triggered");
-    try{
-        await axios.put(
-            `http://localhost:8000/api/tournaments/${tournamentData._id}/reset-group-match/${roundIndex}/${matchIndex}`
-        );
-        console.log("Match reset successfully ✅");
+    //check if all matches are still pending
+    const allMatchesPending = matchData.every(round => round.every(match => match.status !== 'pending'));
 
-         //locally update match data state for instant UI refresh
-        const updatedMatches = [...matchData];//shallow copy of matchData
-        updatedMatches[roundIndex] = [...updatedMatches[roundIndex]]; //shallow copy of the round
-
-        const originalMatch = updatedMatches[roundIndex][matchIndex];
-
+    
+    // RESET single match
+    const resetMatch = async (roundIndex, matchIndex) => {
+        console.log("🔴 resetMatch triggered");
+        try{
+            await axios.put(
+                `http://localhost:8000/api/tournaments/${tournamentData._id}/reset-group-match/${roundIndex}/${matchIndex}`
+            );
+            console.log("Match reset successfully ✅");
+            
+            //locally update match data state for instant UI refresh
+            const updatedMatches = [...matchData];//shallow copy of matchData
+            updatedMatches[roundIndex] = [...updatedMatches[roundIndex]]; //shallow copy of the round
+            
+            const originalMatch = updatedMatches[roundIndex][matchIndex];
+            
         // deep copy + reset the specific match
         const resetMatch = {
             ...originalMatch,
@@ -36,10 +39,10 @@ const resetMatch = async (roundIndex, matchIndex) => {
             ],
             status: 'pending'
         };
-
+        
         updatedMatches[roundIndex][matchIndex] = resetMatch;
         setMatchData(updatedMatches); // trigger UI re-render
-
+        
     }catch(err){
         console.error("❌Error resetting match:", err.response?.data || err.message || err);
     }
@@ -47,9 +50,9 @@ const resetMatch = async (roundIndex, matchIndex) => {
 
 // onChange handler
 const onChangeHandler = (e, roundIndex, matchIndex, participantIndex) => {
-const updatedMatches = [...matchData];
-updatedMatches[roundIndex][matchIndex].participants[participantIndex - 1].score = parseInt(e.target.value) || 0;
-setMatchData(updatedMatches);
+    const updatedMatches = [...matchData];
+    updatedMatches[roundIndex][matchIndex].participants[participantIndex - 1].score = parseInt(e.target.value) || 0;
+    setMatchData(updatedMatches);
 };
 
 
@@ -63,24 +66,24 @@ const handleScoreSubmit = async (e, roundIndex, matchIndex) =>{
             console.warn("⚠️ Invalid matchData structure");
             return;
         }
-
+        
         const matchToSubmit = matchData[roundIndex][matchIndex];
-
+        
         const matchScores = {
             participant1Score: matchToSubmit.participants[0]?.score ?? 0,
             participant2Score: matchToSubmit.participants[1]?.score ?? 0
         };
-
-        //✅ update backend with the new match data
+        
+        //✅ UPDATE backend with the new match data
         await axios.put(`http://localhost:8000/api/tournaments/${tournamentData._id}/group-matches/${roundIndex}/${matchIndex}`,
             matchScores
         );
         console.log("Match Updated Successfully ✅")
-
+        
         //locally update match data state for instant UI refresh
         const updatedMatches = [...matchData];//shallow copy of matchData
         updatedMatches[roundIndex] = [...updatedMatches[roundIndex]]; //shallow copy of the round
-
+        
         // deep copy + update the specific match
         const originalMatch = updatedMatches[roundIndex][matchIndex];
         const updatedMatch = {
@@ -91,40 +94,62 @@ const handleScoreSubmit = async (e, roundIndex, matchIndex) =>{
             ],
             status: 'completed'
         };
-
+        
         updatedMatches[roundIndex][matchIndex] = updatedMatch;
         setMatchData(updatedMatches);
-    
+        
     } catch (err) {
         console.error("Error updating match data:", err);
     };
 }
 
-useEffect(() => {
-const fetchGroupMatches = async () => {
-    
+//CONCLUDE GROUP STAGE
+const handleConcludeGroupStage = async () => {
+    console.log("🟢 handleConcludeGroupStage triggered");
+    console.log("TOURNAMENT ID: ", tournamentData._id);
     try {
-        if (!tournamentData?._id) return;
-        console.log("🎯 useEffect triggered by updatedAt in GroupMatches:", tournamentData.updatedAt);
+        console.log("starting api call to conclude group stage...");
+        await axios.patch(
+            `http://localhost:8000/api/tournaments/${tournamentData._id}/conclude-group-stage`
+        );
 
-        console.log("Fetching group matches for tournament:", tournamentData._id);
+        //re-fetch the full tournament, so that the updated groups and matches are reflected
+        const res = await axios.get(
+            `http://localhost:8000/api/dashboard/${tournamentData._id}`
+        );
 
-        const response = await axios.get(`http://localhost:8000/api/tournaments/${tournamentData._id}/group-stage-matches`);
-        console.log("Fetched group matches:", response.data.matches);
-
-        setMatchData([...response.data.matches]);
+        setTournamentData(res.data.oneTournament);
     } catch (err) {
-        console.error("Error fetching group matches:", err);
-        setMatchData([]);
+        console.error("Error concluding group stage:", err);
+        alert("Error concluding group stage. Please try again.");
     }
 }
-    fetchGroupMatches();
-    }, [tournamentData._id, tournamentData.updatedAt]);
 
-    useEffect(() => {
-        console.log("🎯 matchData updated:", matchData);
-      }, [matchData]); // ✅ this just logs it, doesn't fetch again
-      
+useEffect(() => {
+    const fetchGroupMatches = async () => {
+        
+        try {
+            if (!tournamentData?._id) return;
+            console.log("🎯 useEffect triggered by updatedAt in GroupMatches:", tournamentData.updatedAt);
+            
+            console.log("Fetching group matches for tournament:", tournamentData._id);
+            
+            const response = await axios.get(`http://localhost:8000/api/tournaments/${tournamentData._id}/group-stage-matches`);
+            console.log("Fetched group matches:", response.data.matches);
+            
+            setMatchData([...response.data.matches]);
+        } catch (err) {
+            console.error("Error fetching group matches:", err);
+            setMatchData([]);
+        }
+    }
+    fetchGroupMatches();
+}, [tournamentData._id, tournamentData.updatedAt]);
+
+useEffect(() => {
+    console.log("🎯 matchData updated:", matchData);
+}, [matchData]); // ✅ this just logs it, doesn't fetch again
+
       console.log("🧠 GroupMatches render");
       console.log("📊 matchData:", matchData);
       console.log("📅 tournamentData.updatedAt:", tournamentData.updatedAt);
@@ -218,6 +243,16 @@ const fetchGroupMatches = async () => {
                         );
                     })
                 ) : <p>No matches available.</p>}
+            </div>
+            {/* conclude group stage button */}
+            <div className='text-center my-4'>
+                <button
+                    disabled={!allMatchesPending}
+                    className='btn btn-success'
+                    onClick={handleConcludeGroupStage}
+                    >
+                    Conlude Group Stage
+                </button>
             </div>
         </div>
     );
