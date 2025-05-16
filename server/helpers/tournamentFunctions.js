@@ -212,12 +212,16 @@ if(!Array.isArray(matches) || matches.length === 0){
     console.warn("No matches have been played yet");
     return 0;
 }
+
+
 // Filter in matches between the two participants
 const filterHeadToHeadMatches = matches.filter(match => {
-    const ids = match.participants.map(p => p.participantId.toString());
-    return ids.includes(participantA.participantId.toString())
-    && ids.includes(participantB.participantId.toString());
-})
+    console.log("🏷️ Head-to-Head Participants:", match.participants);
+
+    // Now, match.participants are just IDs—no need to map `.participantId`
+    return match.participants.includes(participantA.toString()) 
+    && match.participants.includes(participantB.toString());
+});
 
 // Initialize stats for both participants
 let statsA = { points: 0, goalsScored: 0, goalDifference: 0};
@@ -229,12 +233,22 @@ for(const match of filterHeadToHeadMatches) {
 
     // convert participantId to string for comparison
     // This is to ensure we are comparing the correct participants
-    const p1Id = p1.participantId.toString();
-    const p2Id = p2.participantId.toString();
+    const p1Id = p1
+    const p2Id = p2
     const aId = participantA._id.toString();
+    
     const bId = participantB._id.toString();
 
     let aScore, bScore;
+
+    //find the scores for each participant
+    const participant1 = match.participants.find(p => p._id.toString() === p1Id);
+    const participant2 = match.participants.find(p => p._id.toString() === p2Id);
+
+    if (!participant1 || !participant2) {
+        console.error("❌ Participant not found for head-to-head comparison.");
+        continue;
+    }
 
     // match participants to the correct ids
     if(p1Id === aId && p2Id === bId){
@@ -246,6 +260,8 @@ for(const match of filterHeadToHeadMatches) {
     }else{
     continue;
     }
+
+    console.log(`🏷️ Head-to-Head: ${participant1.participantName} vs ${participant2.participantName} - ${aScore}:${bScore}`);
 
     // Update stats based on match result
     if(aScore > bScore){
@@ -281,6 +297,17 @@ for(const match of filterHeadToHeadMatches) {
 
 // WRAPPER FUNCTION TO GET SORTED LIST OF GROUP STANDINGS
 const getSortedGroupStandings = (participants, matches) => {
+    console.log("🔍 Final structure inside getSortedGroupStandings:", matches.map(m => m.participants));
+
+
+
+    console.log("🔎 Matches inside getSortedGroupStandings:", matches);
+
+    matches.forEach(match => {
+        if( match.participants[0] && typeof match.participants[0] === 'object'){
+            match.participants = match.participants.map(p => p._id.toString());
+        }
+    })
     return participants.sort((a, b) => sortGroupStandings(a, b, matches));
 };
 
@@ -344,7 +371,7 @@ const recalculateAllParticipantStats = async (tournament) => {
     for(const participant of updatedParticipants.values()){
         await participant.save();
     }
-    console.log("Match results up to date for all participants!");
+    console.log("( recalculateAllParticipantStats )Match results up to date for all participants!");
 }
 
 

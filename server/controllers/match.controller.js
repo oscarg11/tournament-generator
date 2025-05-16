@@ -144,7 +144,7 @@ module.exports.updateGroupStageMatchScores = async (req, res) => {
         await tournament.save();
 
         //check if updatedAt changes
-        console.log("Tournament saved, updatedAt:", tournament.updatedAt)
+        console.log("( updateGroupStageMatchScores ) Tournament saved, updatedAt:", tournament.updatedAt)
 
         //success response
         return res.json({

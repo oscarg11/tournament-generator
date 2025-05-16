@@ -1,5 +1,5 @@
 //Backend helper functions
-const { shuffle, createGroups, createGroupStageMatches } = require("../helpers/tournamentFunctions");
+const { shuffle, createGroups, createGroupStageMatches, getSortedGroupStandings, recalculateAllParticipantStats  } = require("../helpers/tournamentFunctions");
 
 //import models
 const Tournament = require("../models/tournament.model");
@@ -143,6 +143,142 @@ module.exports.deleteTournament = (req, res) => {
         });
 }
 
+//Conclude Group Stage
+module.exports.concludeGroupStage = async (req, res) => {
+    console.log("Conclude Group Stage Triggered!");
+    const tournamentId = req.params.id;
+
+    try {
+        //1. Find and populate tournament data
+        const tournament = await Tournament.findById(tournamentId)
+        .populate('participants')
+        .populate('matches');
+        //validate tournament
+            if (!tournament) {
+                return res.status(404).json({ message: "Tournament not found!" });
+            }
+            console.log("✅ Tournament found:", tournament._id);
+
+             //Deep population of participants within groups
+            await tournament.populate({
+                path: 'groups.participants',
+                select: 'participantName teamName points goalDifference goalsScored _id'
+            });
+            
+            console.log("✅ Groups data:", tournament.participants.map(p => ({
+                id: p._id,
+                name: p.participantName,
+                team: p.teamName,
+                points: p.points,
+                goalDifference: p.goalDifference,
+                goalsScored: p.goalsScored
+            })));
+            
+            //2. final recalculation of all participants stats
+            await recalculateAllParticipantStats(tournament);
+            await tournament.save();
+            console.log("✅ Final Group stage Stats recalculated and saved.");
+
+            //3. Initialize finalist array
+            const finalists = [];
+            const allGroups = tournament.groups;
+
+            // 4. loop through each group to sort and select finalists
+            for (const group of allGroups) {
+                // 🔍 Get all matches for one group
+                const matchesForGroup = tournament.matches.filter(
+                    m => m.group === group.groupName
+                );
+
+                // 🔄 remap matches to plain objects and flatten participants array
+                const remappedMatches = matchesForGroup.map(match => {
+                const plainObject = match.toObject();
+                plainObject.participants = plainObject.participants.map(p => p.toString());
+                return plainObject;
+            });
+
+
+            console.log("🔄 Before Sorting Logic:", group.participants.map(p => ({
+                id: p._id,
+                name: p.participantName,
+                points: p.points,
+                goalDifference: p.goalDifference,
+                goalsScored: p.goalsScored
+            })));
+            
+            // 🏆 Get the sorted standings for the group
+            const standings = getSortedGroupStandings(
+                group.participants,
+                remappedMatches
+            );
+
+            // 🔍 **Print with names**
+            console.log("🏆 Sorted Standings for Group:", standings.map(p => {
+                const participant = tournament.participants.find(
+                    part => part._id.toString() === p._id.toString()
+                );
+                return {
+                    id: p._id,
+                    name: participant ? participant.participantName : "Name not found",
+                    team: participant ? participant.teamName : "Team not found",
+                    points: participant ? participant.points : "No Points",
+                    goalDifference: participant ? participant.goalDifference : "No GD",
+                    goalsScored: participant ? participant.goalsScored : "No GS"
+                };
+            }));
+
+            console.log("✅ Sorted standings:", standings);
+
+            // 🏆 Extract the top two participants from the sorted standings
+            const groupWinner = tournament.participants.find(
+                p => p._id.toString() === standings[0]._id.toString()
+            );
+            const groupRunnerUp = tournament.participants.find(
+                p => p._id.toString() === standings[1]._id.toString()
+            );
+
+            console.log("🏆 FINALISTS SELECTED:", {
+                winner: groupWinner ? groupWinner.participantName : "Not found",
+                winnerTeam: groupWinner ? groupWinner.teamName : "Not found",
+                runnerUp: groupRunnerUp ? groupRunnerUp.participantName : "Not found",
+                runnerUpTeam: groupRunnerUp ? groupRunnerUp.teamName : "Not found"
+            });
+            
+            
+
+            // 🔄 Push to finalist array
+            finalists.push(
+                {
+                    participant: groupWinner._id,
+                    participantName: groupWinner.participantName,
+                    teamName: groupWinner.teamName,
+                    group: group.groupName,
+                    rank:1,
+                },
+                {
+                    participant: groupRunnerUp._id,
+                    participantName: groupRunnerUp.participantName,
+                    teamName: groupRunnerUp.teamName,
+                    group: group.groupName,
+                    rank:2,
+                }
+            );
+        }
+
+        // 5. Save finalists to tournament
+        tournament.finalists = finalists;
+        await tournament.save();
+        return res.json({ finalists: tournament.finalists });
+
+    } catch (error) {
+        console.error("🚨 Error in concludeGroupStage:", error.message);
+        console.error(error.stack);
+        res.status(500).json({ 
+            message: "Something went wrong", 
+            error: error.message 
+        });
+    }
+};
 
 // Load tournament data with populated participants and matches
 module.exports.loadTournamentData = async (req, res) => {
