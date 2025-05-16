@@ -36,7 +36,14 @@ const TournamentSchema = new mongoose.Schema({
         { type: mongoose.Schema.Types.ObjectId, ref: 'Match' }
     ],
     finalists: [
-        { type: mongoose.Schema.Types.ObjectId, ref: 'Participant' }
+        {
+            participant:{ type: mongoose.Schema.Types.ObjectId, ref: 'Participant' },
+            group: { type: String, required: true },
+            rank: { type: Number,
+                    enum: [1, 2],
+                    required: true
+            }
+        }
     ],
     
 }, {timestamps: true});

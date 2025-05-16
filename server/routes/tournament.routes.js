@@ -6,4 +6,7 @@ module.exports = app => {
     app.post('/api/tournaments/create-tournament', TournamentController.createTournament );
     app.patch('/api/tournaments/:id', TournamentController.updateTournament);
     app.delete('/api/tournaments/all-tournaments/:id', TournamentController.deleteTournament);
+
+    //Conclude group stage
+    app.patch('/api/tournaments/:id/conclude-group-stage', TournamentController.concludeGroupStage);
 };
