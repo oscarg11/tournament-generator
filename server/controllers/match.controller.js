@@ -1,5 +1,5 @@
 //Backend helper functions
-const { determineGroupMatchResult, recalculateAllParticipantStats } = require("../helpers/tournamentFunctions");
+const { determineGroupMatchResult, recalculateAllParticipantStats, getSortedGroupStandings } = require("../helpers/tournamentFunctions");
 
 const Match = require("../models/match.model");
 const Tournament = require("../models/tournament.model");
@@ -71,9 +71,9 @@ module.exports.saveMatches = async (req, res) => {
 
 //UPDATE group stage match scores and update each participants stats
 module.exports.updateGroupStageMatchScores = async (req, res) => {
-    //validate request so that both scores are provided
     const { participant1Score, participant2Score } = req.body;
-
+    
+    //validate request so that both scores are provided
     if(participant1Score === undefined || participant2Score === undefined){
         return res. status(400).json({ message: "Both Participant scores are required"})
     }
@@ -81,7 +81,6 @@ module.exports.updateGroupStageMatchScores = async (req, res) => {
     try {
         // Extract parameters from request
         const { tournamentId, roundIndex, matchIndex } = req.params;
-        const { participant1Score, participant2Score } = req.body;
 
         console.log(`Updating scores for tournament ID: ${tournamentId}, Round: ${roundIndex}, Match: ${matchIndex}`);
         console.log(`Scores recieved: P1: ${participant1Score}, P2: ${participant2Score}`);
@@ -94,10 +93,8 @@ module.exports.updateGroupStageMatchScores = async (req, res) => {
         if (!tournament) {
             return res.status(404).json({ message: "Tournament not found!" });
         }
-        
         //Get all group matches in the specified round
         const roundMatches = tournament.matches.filter(match => match.round === parseInt(roundIndex));
-
         //validate rounds
         if(!roundMatches.length){
             return res.status(404).json({ message: "Round not found!"})
@@ -110,48 +107,78 @@ module.exports.updateGroupStageMatchScores = async (req, res) => {
         }
 
         const match = roundMatches[matchIndex];
-
         //ensure match is valid
         if(!match || !match.participants || match.participants.length < 2){
             return res.status(400).json({ message: "Invalid match data!"});
         }
         console.log("Match found:", match)
 
-        //assign new scores
+        //Update scores 
         match.participants[0].score = participant1Score;
         match.participants[1].score = participant2Score;
         match.status = 'completed'; // Mark match as completed
-
-        console.log("Updated Group Match Scores:", match.participants);
-
-        //get participants using the populated participants array
-        const participant1id = match.participants[0].participantId.toString();
-        const participant2id = match.participants[1].participantId.toString();
-
-        const participant1 = tournament.participants.find(p => p._id.toString() === participant1id)
-        const participant2 = tournament.participants.find(p => p._id.toString() === participant2id)
-
-        if(!participant1 || !participant2){
-            return res.status(404).json({ message: "Participants not found!"});
-        }
-        console.log("Participants found:", participant1.participantName, participant2.participantName);
+        await match.save(); // Save the match to db
+        console.log("✅ Match updated and saved successfully!", match);
 
         // calculate or re-calculate stats from all completed matches
         await recalculateAllParticipantStats(tournament)
+        console.log("✅ Participant stats recalculated successfully!");
+        
+        // get group info
+        const groupIndex = tournament.groups.findIndex(g => g.groupName === match.group);
+        if (groupIndex === -1) return res.status(404).json({ message: "Group not found!" });
+        // get group object
+        const group = tournament.groups[groupIndex];
+        //get group participants
+        const groupParticipantIds = tournament.groups[groupIndex].participants;
+        
+        //get all matches in the group
+        const matchesForGroup = tournament.matches.filter(
+                    m => m.group === group.groupName
+                );
 
-        //save updates
-        await match.save();
+        // 🔄 Flatten match participant references for sorting
+        const remappedMatches = matchesForGroup.map(match => {
+            const flat = match.toObject();
+            flat.participants = flat.participants.map(p => p.participantId.toString());
+            return flat;
+        });
+
+        //get full participant objects
+        const groupParticipants = tournament.participants.filter(p =>
+            groupParticipantIds.some(id => id.toString() === p._id.toString())
+        );
+
+        //sort group standings
+        const sortedGroupStandings = getSortedGroupStandings(groupParticipants, remappedMatches);
+        console.log("🧪 Sorted standings:", sortedGroupStandings);
+
+        // save object ids only
+        tournament.groups[groupIndex].participants = sortedGroupStandings.map(p => p._id);
+        tournament.markModified('groups');
+        console.log("🧪 Group participants BEFORE populate (should be ObjectIds):", tournament.groups[groupIndex].participants);
+        // ✅ Save tournament
         await tournament.save();
 
-        //check if updatedAt changes
-        console.log("( updateGroupStageMatchScores ) Tournament saved, updatedAt:", tournament.updatedAt)
+         // Populate group participants for frontend
+        await tournament.populate({
+            path: 'groups.participants',
+            model: 'Participant',
+            select: 'participantName teamName matchesPlayed wins draws losses points goalsScored goalsAgainst goalDifference matchHistory _id'
+        });
+        
+        //re-fetch populated group
+        const updatedGroup = tournament.groups[groupIndex];
+        console.log("✅ Final populated group sent to frontend:", updatedGroup.participants);
+
+        console.log("✅ Tournament saved with updated group standings.");
 
         //success response
         return res.json({
             success: true,
             updatedMatch: match,
-            message: "Scores updated successfully!",
-            updatedParticipants: [participant1, participant2]
+            sortedGroupStandings: updatedGroup.participants,
+            message: "Scores updated successfully!"
         })
     } catch (err) {
         console.error("❌ BACKEND ERROR in updateGroupStageMatchScores:", err);
