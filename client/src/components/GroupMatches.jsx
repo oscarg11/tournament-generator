@@ -75,10 +75,24 @@ const handleScoreSubmit = async (e, roundIndex, matchIndex) =>{
         };
         
         //✅ UPDATE backend with the new match data
-        await axios.put(`http://localhost:8000/api/tournaments/${tournamentData._id}/group-matches/${roundIndex}/${matchIndex}`,
+        const response = await axios.put(
+            `http://localhost:8000/api/tournaments/${tournamentData._id}/group-matches/${roundIndex}/${matchIndex}`,
             matchScores
         );
         console.log("Match Updated Successfully ✅")
+
+        //get updated sorted standings from the response
+        const { sortedGroupStandings } = response.data;
+
+        // update the local state with the new standings
+        setTournamentData((prevData) => ({
+            ...prevData,
+            groups: prevData.groups.map(group => 
+                group.groupName === matchToSubmit.group
+                ? { ...group, participants: sortedGroupStandings }
+                :group
+            )
+        }))
         
         //locally update match data state for instant UI refresh
         const updatedMatches = [...matchData];//shallow copy of matchData

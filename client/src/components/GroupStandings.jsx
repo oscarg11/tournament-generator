@@ -1,5 +1,4 @@
 import React from 'react'
-import { sortGroupStandings } from '../helpers/tournamentUtills';
 
 const GroupStandings = ({groups = [], matches = []}) => {
   if (!Array.isArray(groups)) {
@@ -14,11 +13,6 @@ const GroupStandings = ({groups = [], matches = []}) => {
           console.error(`Error: participant at index ${groupIndex} is not an array`, group.participants);
           return null; // Skip rendering this group
         }
-
-        // call sortGroupStandings function to sort participants
-        const sortedParticipants = [...group.participants].sort((a, b) => {
-          return sortGroupStandings(a, b, group.matches);
-        })
 
         return (
           <div key={group._id} className='mb-3 container'>
@@ -39,7 +33,7 @@ const GroupStandings = ({groups = [], matches = []}) => {
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedParticipants.map((participant, index) => (
+                  {group.participants.map((participant, index) => (
                     <tr key={index}>
 
                       <td className='col-2'>
