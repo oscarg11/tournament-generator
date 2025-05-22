@@ -7,7 +7,7 @@ const MatchSchema = new mongoose.Schema({
             score: { type: Number, default: 0 }
         }
     ],
-    matchNumber : {type: Number, required: true, unique: true},
+    matchNumber : {type: Number, required: true},
     group: { type: String},
     round: {type: Number, required: true },
     startTime: { type: Date, default: Date.now },
