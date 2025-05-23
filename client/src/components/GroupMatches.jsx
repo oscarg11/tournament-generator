@@ -3,6 +3,16 @@ import axios from 'axios'
 
 const GroupMatches = ({tournamentData, setTournamentData}) => {
     const [matchData, setMatchData] = useState([]);
+    //loading indicators
+    const [submittingMatch, setSubmittingMatch] = useState(null);//holds {roundIndex, matchIndex} of the match being submitted
+    const [submittedMatches, setSubmittedMatches] = useState(new Set()) // track submitted matches
+    const [resettingMatch, setResettingMatch] = useState(null); //holds {roundIndex, matchIndex} of the match being reset
+    //conclude grop stage spinner state
+    const [concludingGroupStage, setConcludingGroupStage] = useState(false);
+
+    //conclude group stage
+    const groupStageConcluded = tournamentData.groupStageConcluded;
+
     console.log("📥 tournamentData.updatedAt in GroupMatches:", tournamentData.updatedAt);
 
     //participant lookup function to get Participant name and team name
@@ -17,6 +27,8 @@ const GroupMatches = ({tournamentData, setTournamentData}) => {
     
     // RESET single match
     const resetMatch = async (roundIndex, matchIndex) => {
+        //loading indicator
+        setResettingMatch({ roundIndex, matchIndex });
         console.log("🔴 resetMatch triggered");
         try{
             await axios.put(
@@ -39,12 +51,20 @@ const GroupMatches = ({tournamentData, setTournamentData}) => {
             ],
             status: 'pending'
         };
-        
         updatedMatches[roundIndex][matchIndex] = resetMatch;
         setMatchData(updatedMatches); // trigger UI re-render
+
+        //remove match from submittedMatches so inputs become editable again
+        setSubmittedMatches(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(`${roundIndex}-${matchIndex}`);
+            return newSet;
+        });
         
     }catch(err){
         console.error("❌Error resetting match:", err.response?.data || err.message || err);
+    }finally{
+        setResettingMatch(null);
     }
 }
 
@@ -61,6 +81,9 @@ const handleScoreSubmit = async (e, roundIndex, matchIndex) =>{
     e.preventDefault();
     console.log("🟢 handleScoreSubmit triggered");
     try {
+        //loading indicator
+        setSubmittingMatch({roundIndex, matchIndex});
+
         //safety check
         if(!Array.isArray(matchData) || !Array.isArray(matchData[roundIndex])){
             console.warn("⚠️ Invalid matchData structure");
@@ -114,14 +137,23 @@ const handleScoreSubmit = async (e, roundIndex, matchIndex) =>{
         
     } catch (err) {
         console.error("Error updating match data:", err);
-    };
+    // clear loading indicator
+    } finally {
+        setSubmittingMatch(null);
+    }
 }
 
 //CONCLUDE GROUP STAGE
 const handleConcludeGroupStage = async () => {
     console.log("🟢 handleConcludeGroupStage triggered");
     console.log("TOURNAMENT ID: ", tournamentData._id);
+
+    const confirm = window.confirm("Are you sure you want to conclude the group stage? This action cannot be undone.");
+    if(!confirm) return;
     try {
+        //loading indicator
+        setConcludingGroupStage(true);
+
         console.log("starting api call to conclude group stage...");
         await axios.patch(
             `http://localhost:8000/api/tournaments/${tournamentData._id}/conclude-group-stage`
@@ -136,6 +168,8 @@ const handleConcludeGroupStage = async () => {
     } catch (err) {
         console.error("Error concluding group stage:", err);
         alert("Error concluding group stage. Please try again.");
+    }finally{
+        setConcludingGroupStage(false);
     }
 }
 
@@ -177,17 +211,28 @@ useEffect(() => {
                     // loop through each round in matchData
                     matchData.map((round, roundIndex) => {
                         const currentGroup = round[0]?.group || '';
-
-                        return (
-                            <div key={roundIndex} className='mb-5'>
+                            return (
+                                <div key={roundIndex} className='mb-5'>
                                 {/* Display the group name  */}
                                 {roundIndex === 0 && <h3>{`Group ${currentGroup}`}</h3>}
                                 {/* Display the round number */}
                                 <h4>{`Round ${roundIndex + 1}`}</h4>
 
+                                {/* loop through each match in the round */}
                                 <div className='row g-3 justify-content-center'>
-                                    {/* loop through each match in the round */}
                                     {round.map((match, matchIndex) => {
+                                        // loading indicator for update match
+                                        const isLoading = 
+                                            submittingMatch?.roundIndex === roundIndex &&
+                                            submittingMatch?.matchIndex === matchIndex;
+                                        const isSubmitted = match.status === 'completed';
+
+                                        // loading indicator for reset match
+                                        const isResetting =
+                                            resettingMatch?.roundIndex === roundIndex &&
+                                            resettingMatch?.matchIndex === matchIndex;
+
+
                                         //Define participant details
                                         const participant1 = participantLookup[match.participants[0]?.participantId] || {};
                                         const participant2 = participantLookup[match.participants[1]?.participantId] || {};
@@ -208,47 +253,70 @@ useEffect(() => {
                                                         </label>
 
                                                         {/* Score Inputs */}
-                                                        <input type='number' min='0' max='100' className='form-control me-2'
+                                                        <input
+                                                            type='number'
+                                                            min='0'
+                                                            max='100'
+                                                            className='form-control me-2'
                                                             value={match.participants[0]?.score || 0}
                                                             onChange={(e) => onChangeHandler(e, roundIndex, matchIndex, 1)}
-                                                        />
+                                                            disabled={isSubmitted || groupStageConcluded}
+                                                            />
 
                                                         <span className='mx-2'>-</span>
 
                                                         {/* Participant 2 */}
-                                                        <input type='number' min='0' max='100' className='form-control me-2'
+                                                        <input
+                                                            type='number'
+                                                            min='0'
+                                                            max='100' 
+                                                            className='form-control me-2'
                                                             value={match.participants[1]?.score || 0}
                                                             onChange={(e) => onChangeHandler(e, roundIndex, matchIndex, 2)}
-                                                        />
+                                                            disabled={isSubmitted || groupStageConcluded}
+                                                            />
                                                         <label className='ms-2'>
                                                             {participant2.participantName || "Unknown"} ({participant2.teamName || "Unknown"})
                                                         </label>
                                                     </div>
 
                                                     {/* Confirm button */}
-                                                    <button 
-                                                        type='button'
-                                                        className='btn btn-primary mt-2'
-                                                        onClick={(e) => handleScoreSubmit(e, roundIndex, matchIndex)}
-                                                        disabled={match.status === 'completed'} // Disable if match is completed
-                                                        >
-                                                        {match.status === 'completed' ? 'Submitted': 'Confirm'}
-                                                    </button>
-
-                                                    { match.status === 'completed' && (
-                                                        <small className = 'text-muted mt-1'>Match already Submitted</small>
+                                                    {!groupStageConcluded && (
+                                                        <button 
+                                                            type='button'
+                                                            className='btn btn-primary mt-2'
+                                                            onClick={(e) => handleScoreSubmit(e, roundIndex, matchIndex)}
+                                                            disabled={ isSubmitted || isLoading } // Disable if match is completed
+                                                            >
+                                                        {/* Show loading spinner if submitting */}
+                                                        {isLoading ? (
+                                                        <div className="spinner-border text-sucess" role="status">
+                                                            <span className="visually-hidden">Loading...</span>
+                                                        </div>
+                                                
+                                                        ): isSubmitted ? 'Submitted' : 'Confirm'}
+                                                        </button>
                                                     )}
                                                     
-
-                                                    {/* reset match button */}
+                                                {/* Show reset button only if match is completed */}
+                                                </div>
+                                                {/* reset match button */}
+                                                {!groupStageConcluded && (
                                                     <button 
                                                         type='button'
                                                         className='btn btn-danger mt-2 ms-2'
-                                                        onClick={() => resetMatch(roundIndex, matchIndex)}>
-                                                            Reset Match
+                                                        onClick={() => resetMatch(roundIndex, matchIndex)}
+                                                        >
+                                                        {/* Show loading spinner if submitting */}
+                                                        {isResetting ? (
+                                                        <div className="spinner-border text-danger" role="status">
+                                                            <span className="visually-hidden">Loading...</span>
+                                                        </div>
+                                                
+                                                        ):'Reset Match'}
                                                         </button>
-                                                    
-                                                </div>
+                                                            
+                                                )}
                                             </div>
                                         );
                                     })}
@@ -260,13 +328,26 @@ useEffect(() => {
             </div>
             {/* conclude group stage button */}
             <div className='text-center my-4'>
+                {!tournamentData.groupStageConcluded && (
                 <button
-                    disabled={!allMatchesPending}
-                    className='btn btn-success'
-                    onClick={handleConcludeGroupStage}
-                    >
-                    Conlude Group Stage
+                disabled={!allMatchesPending || concludingGroupStage}
+                className='btn btn-success'
+                onClick={handleConcludeGroupStage}
+                >
+                {concludingGroupStage ? (
+                    <>
+                    <span
+                        className="spinner-border spinner-border-sm me-2 text-light"
+                        role="status"
+                        aria-hidden="true"
+                    />
+                    Concluding...
+                    </>
+                ) : (
+                    "Conclude Group Stage"
+                )}
                 </button>
+            )}
             </div>
         </div>
     );
