@@ -267,6 +267,11 @@ module.exports.concludeGroupStage = async (req, res) => {
 
         // 5. Save finalists to tournament
         tournament.finalists = finalists;
+
+        // disable group stage matches
+        tournament.groupStageConcluded = true;
+        console.log("✅ Group stage concluded:", tournament.groupStageConcluded);
+
         await tournament.save();
         return res.json({ finalists: tournament.finalists });
 
