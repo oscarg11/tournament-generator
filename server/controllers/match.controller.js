@@ -93,6 +93,7 @@ module.exports.updateGroupStageMatchScores = async (req, res) => {
         if (!tournament) {
             return res.status(404).json({ message: "Tournament not found!" });
         }
+
         //Get all group matches in the specified round
         const roundMatches = tournament.matches.filter(match => match.round === parseInt(roundIndex));
         //validate rounds
@@ -153,10 +154,9 @@ module.exports.updateGroupStageMatchScores = async (req, res) => {
         const sortedGroupStandings = getSortedGroupStandings(groupParticipants, remappedMatches);
         console.log("🧪 Sorted standings:", sortedGroupStandings);
 
-        // save object ids only
+        // Save only participant IDs to group
         tournament.groups[groupIndex].participants = sortedGroupStandings.map(p => p._id);
         tournament.markModified('groups');
-        console.log("🧪 Group participants BEFORE populate (should be ObjectIds):", tournament.groups[groupIndex].participants);
         // ✅ Save tournament
         await tournament.save();
 
@@ -166,6 +166,12 @@ module.exports.updateGroupStageMatchScores = async (req, res) => {
             model: 'Participant',
             select: 'participantName teamName matchesPlayed wins draws losses points goalsScored goalsAgainst goalDifference matchHistory _id'
         });
+
+        //Re-order populated participants to match sorted standings
+        const idOrder = sortedGroupStandings.map(p => p._id.toString());
+        tournament.groups[groupIndex].participants = tournament.groups[groupIndex].participants.sort(
+            (a, b) => idOrder.indexOf(a._id.toString()) - idOrder.indexOf(b._id.toString())
+        );
         
         //re-fetch populated group
         const updatedGroup = tournament.groups[groupIndex];
