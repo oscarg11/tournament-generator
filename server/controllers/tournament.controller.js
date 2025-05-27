@@ -32,7 +32,7 @@ module.exports.createTournament = async (req, res) => {
             console.log("✅ Groups Created:", JSON.stringify(groups, null, 2));
 
             //GENERATE GROUP STAGE MATCHES
-            const { allRounds, allMatches } = createGroupStageMatches(groups, numberOfGroupStageLegs);
+            const { allMatches } = createGroupStageMatches(groups, numberOfGroupStageLegs);
             matches = allMatches;
             console.log("✅ Matches Generated:", JSON.stringify(matches, null, 2));
         }
@@ -197,7 +197,6 @@ module.exports.concludeGroupStage = async (req, res) => {
                 return plainObject;
             });
 
-
             console.log("🔄 Before Sorting Logic:", group.participants.map(p => ({
                 id: p._id,
                 name: p.participantName,
@@ -244,8 +243,6 @@ module.exports.concludeGroupStage = async (req, res) => {
                 runnerUpTeam: groupRunnerUp ? groupRunnerUp.teamName : "Not found"
             });
             
-            
-
             // 🔄 Push to finalist array
             finalists.push(
                 {
@@ -284,6 +281,58 @@ module.exports.concludeGroupStage = async (req, res) => {
         });
     }
 };
+
+//Create Knockout Matches
+module.exports.createKnockoutMatches = async (req, res) => {
+    const tournamentId = req.params.id;
+    try {
+        //1. Find the tournment by id and populate finalists
+        const tournament = await Tournament.findById(tournamentId)
+            .populate('finalists.participant')
+            //validate tournament
+            if (!tournament) {
+                return res.status(404).json({ message: "Tournament not found!" });
+            }
+            console.log("✅ Tournament found:", tournament._id);
+
+            const finalists = tournament.finalists;
+            const groups = tournament.groups;
+            const allKnockoutMatches = []
+            let matchNumber = tournament.matches.length; // Start match numbering from the last match number
+
+            //if there is only one group
+            if( groups.length === 1){
+                const [firstPlace, secondPlace] = finalists;
+                //create a single knockout match for the final
+                const grandFinalMatch = {
+                    participants: [
+                        { participantId: firstPlace.participant, score: 0},
+                        { participantId: secondPlace.participant, score: 0 },
+                    ],
+                    matchNumber: matchNumber + 1,
+                };
+                //push the match to the allKnockoutMatches array
+                allKnockoutMatches.push(grandFinalMatch);
+                //insert the match into the database
+                await Match.insertMany(allKnockoutMatches);
+                //save the match to the tournament
+                await tournament.save();
+
+                console.log("✅ Grand Final Match Created:", grandFinalMatch);
+                return res.json({ message: "Grand Final Match Created", match: grandFinalMatch });
+            }
+
+
+    } catch (error) {
+        console.error("🚨 Error in createKnockoutMatches:", error.message);
+        console.error(error.stack);
+        res.status(500).json({ 
+            message: "Something went wrong", 
+            error: error.message 
+        });
+        
+    }
+}
 
 // Load tournament data with populated participants and matches
 module.exports.loadTournamentData = async (req, res) => {
