@@ -9,4 +9,7 @@ module.exports = app => {
 
     //Conclude group stage
     app.patch('/api/tournaments/:id/conclude-group-stage', TournamentController.concludeGroupStage);
+
+    // Create knockout stage
+    app.post('/api/tournaments/:id/create-knockout-stage', TournamentController.createKnockoutStage);
 };
