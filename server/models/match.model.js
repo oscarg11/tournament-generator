@@ -9,7 +9,16 @@ const MatchSchema = new mongoose.Schema({
     ],
     matchNumber : {type: Number, required: true},
     group: { type: String},
-    round: {type: Number, required: true },
+    round: {
+        type: Number,
+        required: function (){
+            return this.stage === 'group' // Only required for group matches
+        }
+    },
+    stage: {
+        type: String,
+        enum: ['group', 'roundOfSixteen', 'quarterFinal', 'semiFinal', 'final']
+    },
     startTime: { type: Date, default: Date.now },
     endTime: { type: Date, default: Date.now },
     status: { type: String, enum: ['pending', 'completed'], default: 'pending' }
