@@ -75,7 +75,6 @@ const onChangeHandler = (e, roundIndex, matchIndex, participantIndex) => {
     setMatchData(updatedMatches);
 };
 
-
 //handle score submit
 const handleScoreSubmit = async (e, roundIndex, matchIndex) =>{
     e.preventDefault();
@@ -173,6 +172,19 @@ const handleConcludeGroupStage = async () => {
     }
 }
 
+//Go to Knockout Stage
+const handleKnockoutStageCreation = async () => {
+    console.log("🟢 handleKnockoutStageCreation triggered");
+    try {
+        await axios.post(
+            `http://localhost:8000/api/tournaments/${tournamentData._id}/create-knockout-stage`
+        )
+    } catch (error) {
+        console.error("Error creating knockout stage:", error);
+        alert("Error creating knockout stage. Please try again.");
+    };
+}
+
 useEffect(() => {
     const fetchGroupMatches = async () => {
         
@@ -208,19 +220,32 @@ useEffect(() => {
                 <h2>Group Matches</h2>
                 {/* check if matchData exists and has matches */}
                 {Array.isArray(matchData) && matchData.length > 0 ? (
-                    // loop through each round in matchData
+                    // loop through each round of matches
                     matchData.map((round, roundIndex) => {
-                        const currentGroup = round[0]?.group || '';
+                        // 1. Group matches by group name
+                        const matchesByGroup = round.reduce((acc, match) => {
+                            const group = match.group || 'Unknown';
+                            console.log("🔍 Match group:", match.group);
+
+                            if (!acc[group]) acc[group] = [];
+                            acc[group].push(match);
+                            return acc;
+                        }, {});
+
                             return (
                                 <div key={roundIndex} className='mb-5'>
-                                {/* Display the group name  */}
-                                {roundIndex === 0 && <h3>{`Group ${currentGroup}`}</h3>}
                                 {/* Display the round number */}
                                 <h4>{`Round ${roundIndex + 1}`}</h4>
 
-                                {/* loop through each match in the round */}
+                                 {/* 👇 Loop through each group in this round (Group A, Group B, etc.) */}
+                                {Object.entries(matchesByGroup).map(([groupName, groupMatches]) => (
+                                    <div key={groupName} className='mb-3'>
+                                        {/* group heading */}
+                                        <h5 className='text-primary'>{`Group: ${groupName}`}</h5>
+                                
+                                {/* 👇 Render all matches for this group in the current round */}
                                 <div className='row g-3 justify-content-center'>
-                                    {round.map((match, matchIndex) => {
+                                    {groupMatches.map((match, matchIndex) => {
                                         // loading indicator for update match
                                         const isLoading = 
                                             submittingMatch?.roundIndex === roundIndex &&
@@ -237,9 +262,9 @@ useEffect(() => {
                                         const participant1 = participantLookup[match.participants[0]?.participantId] || {};
                                         const participant2 = participantLookup[match.participants[1]?.participantId] || {};
                                         console.log(`Match ${match.matchNumber} status:`, match.status);
+
                                         return (
                                             <div key={matchIndex} className='col-md-6'>
-
                                                 {/* Match Card */}
                                                 <div 
                                                 className={`card p-3 align-items-center`}
@@ -322,7 +347,9 @@ useEffect(() => {
                                     })}
                                 </div>
                             </div>
-                        );
+                        ))}
+                            </div>
+                        );  
                     })
                 ) : <p>No matches available.</p>}
             </div>
@@ -348,6 +375,15 @@ useEffect(() => {
                 )}
                 </button>
             )}
+            </div>
+            {/* Go to Knockout stage! */}
+            <div className="text-center my-4">
+                <button
+                    className="btn btn-danger"
+                    onClick={ handleKnockoutStageCreation }
+                >
+                    Ready for Knockout Stage!
+                </button>
             </div>
         </div>
     );
