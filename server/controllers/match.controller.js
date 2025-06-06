@@ -10,7 +10,11 @@ module.exports.getGroupStageMatches = async (req, res) => {
         const { id } = req.params;
         console.log("Get Group stage matches for tournament ID:", id);
 
-        const tournament = await Tournament.findById(id).populate('matches');
+        const tournament = await Tournament.findById(id)
+            .populate({
+                path: 'matches',
+                match: { stage: 'group'} // ✅ Filter matches to only include group stage matches
+            })
 
         if (!tournament) {
             console.log("Tournament not found!");
@@ -219,10 +223,23 @@ module.exports.resetGroupStageMatch = async (req, res) => {
         match.status = 'pending';
 
         // Instead of subtracting old match stats, we recalculate everything from scratch
-        recalculateAllParticipantStats(tournament)
+        await recalculateAllParticipantStats(tournament)
 
-        await match.save?.(); // Save the match to db
-        await tournament.save(); // Save the tournament to db
+        for (let group of tournament.groups) {
+            const groupParticipantIds = group.participants;
+            const groupParticipants = tournament.participants.filter(p =>
+                groupParticipantIds.some(id => id.toString() === p._id.toString())
+            );
+
+            // Sort participants in that group
+            const matchesForGroup = tournament.matches.filter(m => m.group === group.groupName);
+
+            const sorted = getSortedGroupStandings(groupParticipants, matchesForGroup);
+            group.participants = sorted.map(p => p._id); // Save sorted order
+            }
+
+        tournament.markModified('groups');
+        await tournament.save();
     
         res.json({ success: true, message: "Match RESET and tournament stats re-calculated successfully!" });
     }catch(err){
