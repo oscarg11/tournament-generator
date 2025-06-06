@@ -1,5 +1,5 @@
 //Backend helper functions
-const { shuffle, createGroups, createGroupStageMatches, getSortedGroupStandings, recalculateAllParticipantStats  } = require("../helpers/tournamentFunctions");
+const { shuffle, createGroups, createGroupStageMatches, getSortedGroupStandings, recalculateAllParticipantStats, getKnockoutStageName  } = require("../helpers/tournamentFunctions");
 
 //import models
 const Tournament = require("../models/tournament.model");
@@ -30,6 +30,14 @@ module.exports.createTournament = async (req, res) => {
             //CREATE GROUPS
             groups = createGroups(shuffledParticipants);
             console.log("✅ Groups Created:", JSON.stringify(groups, null, 2));
+
+            //assign groups to participant objects
+            for (const group of groups){
+                await Participant.updateMany(
+                    { _id: { $in: group.participants } },
+                    { $set: { groupName: group.groupName } }
+                );
+            }
 
             //GENERATE GROUP STAGE MATCHES
             const { allMatches } = createGroupStageMatches(groups, numberOfGroupStageLegs);
@@ -103,7 +111,17 @@ module.exports.findOneTournament = async (req,res) => {
         //populate groups with participants
         if(tournament.groups && tournament.groups.length > 0){
             for(let group of tournament.groups){
-                group.participants = await Participant.find({ _id: { $in: group.participants } });
+                const idOrder = group.participants.map(p => p.toString());
+
+                //find all participants in the group
+                const populated = await Participant.find({
+                    _id: { $in: idOrder}
+                })
+
+                //reorder participants to match the original order
+                group.participants = idOrder.map(id => 
+                    populated.find(p => p._id.toString() === id)
+                );
             }
         }
         res.json( {oneTournament: tournament} );
@@ -113,7 +131,6 @@ module.exports.findOneTournament = async (req,res) => {
         
     }
 }
-
 
 //UPDATE or edit tournament
 module.exports.updateTournament = (req, res) => {
@@ -191,11 +208,7 @@ module.exports.concludeGroupStage = async (req, res) => {
                 );
 
                 // 🔄 remap matches to plain objects and flatten participants array
-                const remappedMatches = matchesForGroup.map(match => {
-                const plainObject = match.toObject();
-                plainObject.participants = plainObject.participants.map(p => p.toString());
-                return plainObject;
-            });
+                const remappedMatches = matchesForGroup.map(match => match.toObject());
 
             console.log("🔄 Before Sorting Logic:", group.participants.map(p => ({
                 id: p._id,
@@ -210,6 +223,12 @@ module.exports.concludeGroupStage = async (req, res) => {
                 group.participants,
                 remappedMatches
             );
+
+            //re-assign updated standings to group participants
+            group.participants = standings.map(p => p._id);
+            tournament.markModified('groups');
+            // ✅ Save tournament with updated group standings
+            await tournament.save();
 
             // 🔍 **Print with names**
             console.log("🏆 Sorted Standings for Group:", standings.map(p => {
@@ -264,6 +283,8 @@ module.exports.concludeGroupStage = async (req, res) => {
 
         // 5. Save finalists to tournament
         tournament.finalists = finalists;
+        //what is in the finalist array?
+        console.log("Finalists in conclude group stage", tournament.finalists)
 
         // disable group stage matches
         tournament.groupStageConcluded = true;
@@ -289,6 +310,7 @@ module.exports.createKnockoutMatches = async (req, res) => {
         //1. Find the tournment by id and populate finalists
         const tournament = await Tournament.findById(tournamentId)
             .populate('finalists.participant')
+
             //validate tournament
             if (!tournament) {
                 return res.status(404).json({ message: "Tournament not found!" });
@@ -296,20 +318,27 @@ module.exports.createKnockoutMatches = async (req, res) => {
             console.log("✅ Tournament found:", tournament._id);
 
             const finalists = tournament.finalists;
+            console.log("FINALIST Array called from createKockout Controller:", finalists)
             const groups = tournament.groups;
             const allKnockoutMatches = []
-            let matchNumber = tournament.matches.length; // Start match numbering from the last match number
+            let matchNumber = tournament.matches.length + 1; // Start match numbering from the last match number
 
-            //if there is only one group
+            // If there is only one Group then a single final match will be created
             if( groups.length === 1){
                 const [firstPlace, secondPlace] = finalists;
+                console.log("🏆 Grand Finalists:");
+                console.log(`1st Place: ${firstPlace.participant.participantName} | Group: ${firstPlace.participant.groupName} | Rank: 1`);
+                console.log(`2nd Place: ${secondPlace.participant.participantName} | Group: ${secondPlace.participant.groupName} | Rank: 2`);
+
                 //create a single knockout match for the final
                 const grandFinalMatch = {
                     participants: [
                         { participantId: firstPlace.participant, score: 0},
                         { participantId: secondPlace.participant, score: 0 },
                     ],
-                    matchNumber: matchNumber + 1,
+                    matchNumber: matchNumber++,
+                    stage: 'final',
+                    status: 'pending'
                 };
                 //push the match to the allKnockoutMatches array
                 allKnockoutMatches.push(grandFinalMatch);
@@ -320,6 +349,100 @@ module.exports.createKnockoutMatches = async (req, res) => {
 
                 console.log("✅ Grand Final Match Created:", grandFinalMatch);
                 return res.json({ message: "Grand Final Match Created", match: grandFinalMatch });
+
+            //handle multiple groups
+            }else{
+                //organize all finalist by their group
+                const finalistsByGroup = finalists.reduce((groupedFinalists, finalist) => {
+                    const group = finalist.participant.groupName || "Unknown Group";
+                    if(!groupedFinalists[group]){
+                        groupedFinalists[group] = [];
+                    }
+                    groupedFinalists[group].push({
+                        participant: finalist.participant._id,
+                        participantName: finalist.participant.participantName,
+                        group: group,
+                        rank: finalist.rank
+                    });
+                    console.log(`🧩 Grouping finalist: ${finalist.participant.participantName} into ${group}`);
+                    return groupedFinalists;
+                },{});
+                
+                // Log the grouped finalists array
+                console.log("📊 Finalists grouped by group name (stringified IDs):");
+                console.dir(
+                Object.entries(finalistsByGroup).reduce((acc, [group, finalists]) => {
+                    acc[group] = finalists.map(f => ({
+                    ...f,
+                    participant: f.participant.toString()
+                    }));
+                    return acc;
+                }, {}),
+                { depth: null }
+                );
+
+                // create knockout matches based on the finalists
+                const numOfFinalists = finalists.length;
+                const totalRounds = Math.ceil(Math.log2(numOfFinalists));
+                const knockOutRounds = Array.from({ length: totalRounds }, () => []);
+
+                // access the groups array from the finalistsByGroup object
+                const groupKeys = Object.keys(finalistsByGroup);
+
+                // iterate through each group
+                for( let i = 0; i < groupKeys.length; i+= 2){
+                    const group1 = groupKeys[i];
+                    const group2 = groupKeys[i + 1];
+
+                    const group1Finalists = finalistsByGroup[group1];
+                    const group2Finalists = finalistsByGroup[group2];
+
+                    //Create knockout matches for each group pair
+                    const match1 = {
+                        participants: [
+                            { participantId: group1Finalists[0].participant, score: 0 },
+                            { participantId: group2Finalists[1].participant, score: 0 }
+                        ],
+                        matchNumber: matchNumber ++,
+                        stage: getKnockoutStageName(0, totalRounds),
+                        status: 'pending'
+                    };
+
+                    const match2 = {
+                        participants: [
+                            { participantId: group2Finalists[0].participant, score: 0 },
+                            { participantId: group1Finalists[1].participant, score: 0 }
+                        ],
+                        matchNumber: matchNumber++,
+                        stage: getKnockoutStageName(0, totalRounds),
+                        status: 'pending'
+                    };
+
+                    //push the matches to the KnockOutRounds array
+                    knockOutRounds[0].push(match1);
+                    knockOutRounds[0].push(match2);
+                }
+                const insertedMatches = await Match.insertMany(knockOutRounds[0]);
+
+                // Populate participantId with participantName and teamName
+                await Match.populate(insertedMatches, {
+                path: 'participants.participantId',
+                select: 'participantName teamName'
+                });
+
+                const matchIds = insertedMatches.map(match => match._id);
+
+                console.log("✅ Knockout Matches Created:");
+                insertedMatches.forEach(match => {
+                const [p1, p2] = match.participants;
+                console.log(`- Match ${match.matchNumber}: ${p1.participantId.participantName} vs ${p2.participantId.participantName} | Stage: ${match.stage}`);
+                });
+
+                //save the matches to the tournament
+                tournament.matches.push(...matchIds);
+                await tournament.save();
+                console.log("✅ Tournament updated with knockout matches.");
+                res.json({ message: "Knockout Matches Created", matches: insertedMatches });
             }
 
 
