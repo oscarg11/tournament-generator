@@ -1,5 +1,6 @@
-import React, {useState, useEffect} from 'react'
+import React, {useState, useEffect, useMemo} from 'react'
 import axios from 'axios'
+import { participantLookupFunction } from '../helpers/tournamentUtills';
 
 const GroupMatches = ({tournamentData, setTournamentData}) => {
     const [matchData, setMatchData] = useState([]);
@@ -10,20 +11,18 @@ const GroupMatches = ({tournamentData, setTournamentData}) => {
     //conclude grop stage spinner state
     const [concludingGroupStage, setConcludingGroupStage] = useState(false);
 
+//Participant Lookup Function to get Participant name and team name
+    const participantLookup = useMemo(() => {
+        return participantLookupFunction(tournamentData.participants);
+    }, [tournamentData.participants]);
+
     //conclude group stage
     const groupStageConcluded = tournamentData.groupStageConcluded;
 
     console.log("📥 tournamentData.updatedAt in GroupMatches:", tournamentData.updatedAt);
 
-    //participant lookup function to get Participant name and team name
-    const participantLookup = tournamentData.participants.reduce((count, participant) => {
-        count[participant._id] = participant;
-        return count;
-    }, {});
-
     //check if all matches are still pending
     const allMatchesPending = matchData.every(round => round.every(match => match.status !== 'pending'));
-
     
     // RESET single match
     const resetMatch = async (roundIndex, matchIndex) => {
@@ -210,9 +209,9 @@ useEffect(() => {
     console.log("🎯 matchData updated:", matchData);
 }, [matchData]); // ✅ this just logs it, doesn't fetch again
 
-      console.log("🧠 GroupMatches render");
-      console.log("📊 matchData:", matchData);
-      console.log("📅 tournamentData.updatedAt:", tournamentData.updatedAt);
+    console.log("🧠 GroupMatches render");
+    console.log("📊 matchData:", matchData);
+    console.log("📅 tournamentData.updatedAt:", tournamentData.updatedAt);
 
     return (
         <div>
@@ -222,14 +221,14 @@ useEffect(() => {
                 {Array.isArray(matchData) && matchData.length > 0 ? (
                     // loop through each round of matches
                     matchData.map((round, roundIndex) => {
-                        // 1. Group matches by group name
-                        const matchesByGroup = round.reduce((acc, match) => {
+                        // 1. organize matches by group name
+                        const groupedMatches = round.reduce((matchesByGroup, match) => {
                             const group = match.group || 'Unknown';
                             console.log("🔍 Match group:", match.group);
 
-                            if (!acc[group]) acc[group] = [];
-                            acc[group].push(match);
-                            return acc;
+                            if (!matchesByGroup[group]) matchesByGroup[group] = [];
+                            matchesByGroup[group].push(match);
+                            return matchesByGroup;
                         }, {});
 
                             return (
@@ -238,24 +237,25 @@ useEffect(() => {
                                 <h4>{`Round ${roundIndex + 1}`}</h4>
 
                                  {/* 👇 Loop through each group in this round (Group A, Group B, etc.) */}
-                                {Object.entries(matchesByGroup).map(([groupName, groupMatches]) => (
+                                {Object.entries(groupedMatches).map(([groupName, groupMatches]) => (
                                     <div key={groupName} className='mb-3'>
                                         {/* group heading */}
                                         <h5 className='text-primary'>{`Group: ${groupName}`}</h5>
                                 
                                 {/* 👇 Render all matches for this group in the current round */}
                                 <div className='row g-3 justify-content-center'>
-                                    {groupMatches.map((match, matchIndex) => {
+                                    {groupMatches.map((match) => {
+                                        const fullMatchIndex = round.findIndex(m => m._id === match._id);
                                         // loading indicator for update match
                                         const isLoading = 
                                             submittingMatch?.roundIndex === roundIndex &&
-                                            submittingMatch?.matchIndex === matchIndex;
+                                            submittingMatch?.fullMatchIndex === fullMatchIndex;
                                         const isSubmitted = match.status === 'completed';
 
                                         // loading indicator for reset match
                                         const isResetting =
                                             resettingMatch?.roundIndex === roundIndex &&
-                                            resettingMatch?.matchIndex === matchIndex;
+                                            resettingMatch?.fullMatchIndex === fullMatchIndex;;
 
 
                                         //Define participant details
@@ -264,7 +264,7 @@ useEffect(() => {
                                         console.log(`Match ${match.matchNumber} status:`, match.status);
 
                                         return (
-                                            <div key={matchIndex} className='col-md-6'>
+                                            <div key={match._id || match.matchNumber || `${roundIndex}-${fullMatchIndex}`} className='col-md-6'>
                                                 {/* Match Card */}
                                                 <div 
                                                 className={`card p-3 align-items-center`}
@@ -284,7 +284,7 @@ useEffect(() => {
                                                             max='100'
                                                             className='form-control me-2'
                                                             value={match.participants[0]?.score || 0}
-                                                            onChange={(e) => onChangeHandler(e, roundIndex, matchIndex, 1)}
+                                                            onChange={(e) => onChangeHandler(e, roundIndex, fullMatchIndex, 1)}
                                                             disabled={isSubmitted || groupStageConcluded}
                                                             />
 
@@ -297,7 +297,7 @@ useEffect(() => {
                                                             max='100' 
                                                             className='form-control me-2'
                                                             value={match.participants[1]?.score || 0}
-                                                            onChange={(e) => onChangeHandler(e, roundIndex, matchIndex, 2)}
+                                                            onChange={(e) => onChangeHandler(e, roundIndex, fullMatchIndex, 2)}
                                                             disabled={isSubmitted || groupStageConcluded}
                                                             />
                                                         <label className='ms-2'>
@@ -310,7 +310,7 @@ useEffect(() => {
                                                         <button 
                                                             type='button'
                                                             className='btn btn-primary mt-2'
-                                                            onClick={(e) => handleScoreSubmit(e, roundIndex, matchIndex)}
+                                                            onClick={(e) => handleScoreSubmit(e, roundIndex, fullMatchIndex)}
                                                             disabled={ isSubmitted || isLoading } // Disable if match is completed
                                                             >
                                                         {/* Show loading spinner if submitting */}
@@ -330,7 +330,7 @@ useEffect(() => {
                                                     <button 
                                                         type='button'
                                                         className='btn btn-danger mt-2 ms-2'
-                                                        onClick={() => resetMatch(roundIndex, matchIndex)}
+                                                        onClick={() => resetMatch(roundIndex, fullMatchIndex)}
                                                         >
                                                         {/* Show loading spinner if submitting */}
                                                         {isResetting ? (

@@ -34,7 +34,7 @@ const GroupStandings = ({groups = [], matches = []}) => {
                 </thead>
                 <tbody>
                   {group.participants.map((participant, index) => (
-                    <tr key={index}>
+                    <tr key={participant._id || participant.participantName}>
 
                       <td className='col-2'>
                         {/* styling to keep table postion numbers and participant names aligned */}
