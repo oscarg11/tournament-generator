@@ -11,6 +11,7 @@ const ParticipantSchema = new mongoose.Schema({
         required: [true, "Team name is required"],
         minlength: [2, "Team Name must be at least 2 characters"]
         },
+    groupName: {type: String},
     goalsScored: { type: Number, default: 0 },
     goalsAgainst: { type: Number, default: 0 },
     goalDifference: { type: Number, default: 0 },
