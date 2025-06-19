@@ -40,6 +40,41 @@ module.exports.getGroupStageMatches = async (req, res) => {
     }
 }
 
+// Get all knockout stage matches
+module.exports.getKnockoutStageMatches = async (req, res) => {
+    try {
+        const { id } = req.params;
+        console.log("Get Knockout stage matches for tournament ID:", id);
+
+        const tournament = await Tournament.findById(id)
+            .populate({
+                path: 'matches',
+                match: { stage: { $ne: 'group'} } // filter in knockout matches only
+            });
+            console.log("tournament retrieved from GetKnockoutStageMatches:", tournament);
+        
+        //validate tournament
+        if (!tournament) {
+            console.log("Tournament not found!");
+            return res.status(404).json({ message: "Tournament not found!" });
+        }
+
+        //group matches by stage
+        const groupedMatchesByStage = tournament.matches.reduce((acc, match) => {
+            if(!acc[match.stage]) acc[match.stage] = [];
+                acc[match.stage].push(match);
+            return acc;
+        }, {});
+        console.log("Grouped matches by stage From getKnockoutMatches:", groupedMatchesByStage);
+
+        res.json({ matches: groupedMatchesByStage }); // Return matches grouped by stage
+
+    } catch (err) {
+        console.error("Error fetching knockout stage matches:", err);
+        res.status(500).json({ message: "Something went wrong", error: err });
+    }
+}
+
 
 module.exports.saveMatches = async (req, res) => {
     try {
@@ -231,9 +266,10 @@ module.exports.resetGroupStageMatch = async (req, res) => {
                 groupParticipantIds.some(id => id.toString() === p._id.toString())
             );
 
-            // Sort participants in that group
+            // get all matches in the group
             const matchesForGroup = tournament.matches.filter(m => m.group === group.groupName);
 
+            // call the sorting functin to update
             const sorted = getSortedGroupStandings(groupParticipants, matchesForGroup);
             group.participants = sorted.map(p => p._id); // Save sorted order
             }
@@ -245,5 +281,60 @@ module.exports.resetGroupStageMatch = async (req, res) => {
     }catch(err){
         console.error("❌ Error RESETTING match:",err);
         res.status(500).json({ message: "Failed to reset match", error: err });
+    }
+}
+
+//Update Knockout Stage match
+module.exports.updateKnockoutStageMatch = async(req, res) => {
+    const { participant1Score, participant2Score } = req.body;
+    
+    //validate request so that both scores are provided
+    if(participant1Score === undefined || participant2Score === undefined){
+        return res. status(400).json({ message: "Both Participant scores are required"})
+    }
+
+    try {
+        //Extract parameters from request
+        const { tournamentId, stageName, matchIndex } = req.params;
+        console.log(`Updating scores for tournament ID: ${tournamentId}, Stage: ${stageName}, Match: ${matchIndex}`);
+        console.log(`Scores recieved: P1: ${participant1Score}, P2: ${participant2Score}`);
+
+        // Find the tournament by ID
+        const tournament = await Tournament.findById(tournamentId)
+            .populate('matches')
+            .populate('participants');
+
+        if (!tournament) {
+            return res.status(404).json({ message: "Tournament not found!" });
+        }
+
+        //get matches from specific stage
+        const matchesInStage = tournament.matches.filter(m => m.stage === stageName);
+        //validate matches
+        if(!matchesInStage.length){
+            return res.status(404).json({ message: "Stage not found!"})
+        }
+        console.log("Filtered stage matches", matchesInStage);
+
+        //define the match
+        const match = matchesInStage[matchIndex];
+         //ensure match is valid
+        if(!match || !match.participants || match.participants.length < 2){
+            return res.status(400).json({ message: "Invalid match data!"});
+        }
+        console.log("Match found:", match)
+
+        //Update Scores
+        match.participants[0].score = participant1Score;
+        match.participants[1].score = participant2Score;
+        match.status = 'completed'; 
+        await match.save();
+        console.log("✅ Knockout Match updated and saved successfully!", match);
+
+
+    } catch (error) {
+        console.error("❌ Error updating knockout stage match:", error);
+        res.status(500).json({ message: "Failed to update match", error });
+        
     }
 }
