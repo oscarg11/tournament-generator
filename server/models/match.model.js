@@ -17,7 +17,7 @@ const MatchSchema = new mongoose.Schema({
     },
     stage: {
         type: String,
-        enum: ['group', 'roundOfSixteen', 'quarterFinal', 'semiFinal', 'final']
+        enum: ['group', 'roundOfSixteen', 'quarterFinals', 'semiFinals', 'Final']
     },
     startTime: { type: Date, default: Date.now },
     endTime: { type: Date, default: Date.now },
