@@ -1,13 +1,11 @@
 //SHUFFLE PLAYERS FUNCTION
 const shuffle = (array) => {
-    console.log("Before Shuffling array:", array);
     for (let i = array.length - 1; i > 0; i--){
         //generate random index from 0 to i
         const j = Math.floor(Math.random() * (i + 1));
         //then swap random index (j) with current index (i)
         [array[i], array[j]] = [array[j], array[i]];
     }
-    console.log("After Shuffling array:", array);
     return array;
 }
 
@@ -31,7 +29,6 @@ const createGroups = (participantIds) => {
             });
         }
     }
-    console.log("CREATEGROUPS FUNCTION OUTPUT:", groups);
     return groups;
 };
 
@@ -59,10 +56,11 @@ const createGroupStageMatches = (groups, numberOfGroupStageLegs) => {
         const rounds = Array.from({ length: totalRounds }, () => []); // Initialize rounds
 
         let rotatedParticipants = [...group.participants];
-
+        
         for (let leg = 1; leg <= numberOfGroupStageLegs; leg++) {
             for (let round = 0; round < numOfParticipants - 1; round++) {
                 for (let i = 0; i < Math.floor(numOfParticipants / 2); i++) {
+                    // rotate participants for unique matchups
                     const participant1 = rotatedParticipants[i];
                     const participant2 = rotatedParticipants[rotatedParticipants.length - 1 - i];
 
@@ -70,7 +68,7 @@ const createGroupStageMatches = (groups, numberOfGroupStageLegs) => {
                         console.error("Undefined participant detected:", { participant1, participant2 });
                         continue;
                     }
-
+                    // create new match object
                     const match = {
                         participants: [
                             { participantId: participant1, score: 0 },
@@ -79,6 +77,7 @@ const createGroupStageMatches = (groups, numberOfGroupStageLegs) => {
                         matchNumber: matchCount++, // Unique match number
                         group: group.groupName,
                         round, // The round number
+                        stage: 'group'
                     };
 
                     rounds[round].push(match);
@@ -95,10 +94,6 @@ const createGroupStageMatches = (groups, numberOfGroupStageLegs) => {
         }
         allRounds.push(rounds); // Push rounds into allRounds array
     });
-
-    console.log("Final Nested Rounds (Matches):", JSON.stringify(allRounds, null, 2));
-    console.log("All Matches (Flat List for Saving):", JSON.stringify(allMatches, null, 2));
-
     return { allRounds, allMatches }; // ✅ Return both rounds and a flat list of matches
 };
 
@@ -109,13 +104,6 @@ const determineGroupMatchResult = (participant1, participant2, score,match) => {
         const POINTS_PER_WIN = 3;
         const POINTS_PER_DRAW = 1;
         const POINTS_PER_LOSS = 0;
-        console.log("From determineGroupMatchResult function");
-        console.log("Before Match updates");
-        console.log("Received Score Object:", score);
-        console.log("Participant1 Score:", score.participant1);
-        console.log("Participant2 Score:", score.participant2);
-        console.log("Participant1 - Goals Scored:", participant1.goalsScored, "Goals Against:", participant1.goalsAgainst);
-        console.log("Participant2 - Goals Scored:", participant2.goalsScored, "Goals Against:", participant2.goalsAgainst);
 
             //participant 1 wins
             if(score.participant1 > score.participant2){
@@ -177,10 +165,6 @@ const determineGroupMatchResult = (participant1, participant2, score,match) => {
 
                 match.status = 'completed'; // Update match status to completed
             }
-    
-            console.log("After Update:");
-            console.log("Participant1 - Goals Scored:", participant1.goalsScored, "Goals Against:", participant1.goalsAgainst, "Goal Difference:", participant1.goalDifference);
-            console.log("Participant2 - Goals Scored:", participant2.goalsScored, "Goals Against:", participant2.goalsAgainst, "Goal Difference:", participant2.goalDifference);
             
             return {participant1, participant2}
     
@@ -212,7 +196,6 @@ if(!Array.isArray(matches) || matches.length === 0){
     console.warn("No matches have been played yet");
     return 0;
 }
-
 
 // Filter in matches between the two participants
 const filterHeadToHeadMatches = matches.filter(match => {
@@ -297,17 +280,7 @@ for(const match of filterHeadToHeadMatches) {
 
 // WRAPPER FUNCTION TO GET SORTED LIST OF GROUP STANDINGS
 const getSortedGroupStandings = (participants, matches) => {
-    console.log("🔍 Final structure inside getSortedGroupStandings:", matches.map(m => m.participants));
-
-
-
-    console.log("🔎 Matches inside getSortedGroupStandings:", matches);
-
-    matches.forEach(match => {
-        if( match.participants[0] && typeof match.participants[0] === 'object'){
-            match.participants = match.participants.map(p => p._id.toString());
-        }
-    })
+    console.log("🔎 Matches inside getSortedGroupStandings:\n", JSON.stringify(matches, null, 2));
     return participants.sort((a, b) => sortGroupStandings(a, b, matches));
 };
 
@@ -374,6 +347,19 @@ const recalculateAllParticipantStats = async (tournament) => {
     console.log("( recalculateAllParticipantStats )Match results up to date for all participants!");
 }
 
+//determine what stage of finals the tournament is in
+const getKnockoutStageName = (roundIndex, totalRounds) => {
+    const stageNames = [
+        'group',
+        'roundOfSixteen',
+        'quarterFinals',
+        'semiFinals',
+        'final'
+    ];
+    const offSet = stageNames.length - totalRounds;
+    return stageNames[roundIndex + offSet]
+}
+
 
 
 module.exports = {
@@ -384,5 +370,6 @@ module.exports = {
     sortGroupStandings,
     headToHeadComparison,
     getSortedGroupStandings,
-    recalculateAllParticipantStats
+    recalculateAllParticipantStats,
+    getKnockoutStageName
 }
