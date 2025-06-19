@@ -106,9 +106,14 @@ const [activeTab, setActiveTab] = useState('groupStage'); // state to track whic
           setTournamentData={setTournamentData}
           matchData={matchData}
           setMatchData={setMatchData}
+          setActiveTab={setActiveTab}
         />}
 
-        {activeTab === 'finalsStage' && <FinalsStage />}
+        {!loading && activeTab === 'finalsStage' && (<FinalsStage 
+          tournamentData={tournamentData}
+          setTournamentData={setTournamentData}
+          matchData={matchData}
+          setMatchData={setMatchData}/>)}
 
         {activeTab === 'teamsTab' && <TeamsTab />}
 
