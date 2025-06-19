@@ -2,7 +2,7 @@ import React, {useState, useEffect, useMemo} from 'react'
 import axios from 'axios'
 import { participantLookupFunction } from '../helpers/tournamentUtills';
 
-const GroupMatches = ({tournamentData, setTournamentData}) => {
+const GroupMatches = ({tournamentData, setTournamentData, setActiveTab}) => {
     const [matchData, setMatchData] = useState([]);
     //loading indicators
     const [submittingMatch, setSubmittingMatch] = useState(null);//holds {roundIndex, matchIndex} of the match being submitted
@@ -67,7 +67,7 @@ const GroupMatches = ({tournamentData, setTournamentData}) => {
     }
 }
 
-// onChange handler
+//onChange handler
 const onChangeHandler = (e, roundIndex, matchIndex, participantIndex) => {
     const updatedMatches = [...matchData];
     updatedMatches[roundIndex][matchIndex].participants[participantIndex - 1].score = parseInt(e.target.value) || 0;
@@ -178,6 +178,8 @@ const handleKnockoutStageCreation = async () => {
         await axios.post(
             `http://localhost:8000/api/tournaments/${tournamentData._id}/create-knockout-stage`
         )
+        console.log("Knockout stage created successfully ✅");
+        setActiveTab('finalsStage');
     } catch (error) {
         console.error("Error creating knockout stage:", error);
         alert("Error creating knockout stage. Please try again.");
@@ -256,7 +258,6 @@ useEffect(() => {
                                         const isResetting =
                                             resettingMatch?.roundIndex === roundIndex &&
                                             resettingMatch?.fullMatchIndex === fullMatchIndex;;
-
 
                                         //Define participant details
                                         const participant1 = participantLookup[match.participants[0]?.participantId] || {};
