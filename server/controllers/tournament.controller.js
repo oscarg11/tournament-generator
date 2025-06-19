@@ -20,7 +20,7 @@ module.exports.createTournament = async (req, res) => {
         
         // Shuffle participants
         const shuffledParticipants = shuffle([...participantIds]);
-        console.log("Participants in createTournament AFTER shuffle():", participantIds);
+        console.log("Participants in createTournament AFTER shuffle():", shuffledParticipants);
 
         let groups = [];
         let matches = [];
@@ -42,7 +42,7 @@ module.exports.createTournament = async (req, res) => {
             //GENERATE GROUP STAGE MATCHES
             const { allMatches } = createGroupStageMatches(groups, numberOfGroupStageLegs);
             matches = allMatches;
-            console.log("✅ Matches Generated:", JSON.stringify(matches, null, 2));
+            // console.log("✅ Matches Generated:", JSON.stringify(matches, null, 2));
         }
         
         const newTournament = await Tournament.create({
@@ -61,7 +61,7 @@ module.exports.createTournament = async (req, res) => {
             const matchInstances = await Match.insertMany(matches);
             const matchIds = matchInstances.map((match) => match._id);
             
-            console.log("✅ Inserted Match IDs:", matchIds);
+            // console.log("✅ Inserted Match IDs:", matchIds);
             newTournament.matches = matchIds;
             await newTournament.save();
             console.log("✅ Tournament updated with matches.");
@@ -138,7 +138,7 @@ module.exports.updateTournament = (req, res) => {
         .populate('participants')
         .populate('matches')
         .then(updatedTournament => {
-            console.log("Tournament updated successfully!");
+            console.log("Tournament UPDATED successfully!");
             res.json({ tournament: updatedTournament });
         })
         .catch(err => {
@@ -391,8 +391,9 @@ module.exports.createKnockoutMatches = async (req, res) => {
 
                 // iterate through each group
                 for( let i = 0; i < groupKeys.length; i+= 2){
-                    const group1 = groupKeys[i];
-                    const group2 = groupKeys[i + 1];
+                    // get the current groups first index and the next groups second index 
+                    const group1 = groupKeys[i]; // ex "Group A: group winner
+                    const group2 = groupKeys[i + 1]; // ex "Group B: group runner up
 
                     const group1Finalists = finalistsByGroup[group1];
                     const group2Finalists = finalistsByGroup[group2];
