@@ -11,5 +11,5 @@ module.exports = app => {
     app.patch('/api/tournaments/:id/conclude-group-stage', TournamentController.concludeGroupStage);
 
     // Create knockout stage
-    app.post('/api/tournaments/:id/create-knockout-stage', TournamentController.createKnockoutStage);
+    app.post('/api/tournaments/:id/create-knockout-stage', TournamentController.createKnockoutMatches);
 };
