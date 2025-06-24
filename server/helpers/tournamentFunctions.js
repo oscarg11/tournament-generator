@@ -280,7 +280,6 @@ for(const match of filterHeadToHeadMatches) {
 
 // WRAPPER FUNCTION TO GET SORTED LIST OF GROUP STANDINGS
 const getSortedGroupStandings = (participants, matches) => {
-    console.log("🔎 Matches inside getSortedGroupStandings:\n", JSON.stringify(matches, null, 2));
     return participants.sort((a, b) => sortGroupStandings(a, b, matches));
 };
 
@@ -354,7 +353,7 @@ const getKnockoutStageName = (roundIndex, totalRounds) => {
         'roundOfSixteen',
         'quarterFinals',
         'semiFinals',
-        'final'
+        'Final'
     ];
     const offSet = stageNames.length - totalRounds;
     return stageNames[roundIndex + offSet]
