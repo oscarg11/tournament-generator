@@ -21,7 +21,15 @@ const MatchSchema = new mongoose.Schema({
     },
     startTime: { type: Date, default: Date.now },
     endTime: { type: Date, default: Date.now },
-    status: { type: String, enum: ['pending', 'completed'], default: 'pending' }
+    status: { type: String, enum: ['pending', 'completed'], default: 'pending' },
+    nextMatchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Match' },
+    nextSlotIndex: { type: Number,enum: [0,1]},
+    winner: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Participant',
+        default: null // Initially no winner
+    }
+
 }, {timestamps: true});
 
 module.exports = mongoose.model('Match', MatchSchema);
