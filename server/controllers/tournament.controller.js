@@ -1,5 +1,13 @@
+const mongoose = require('mongoose');
+
 //Backend helper functions
-const { shuffle, createGroups, createGroupStageMatches, getSortedGroupStandings, recalculateAllParticipantStats, getKnockoutStageName  } = require("../helpers/tournamentFunctions");
+const { shuffle,
+        createGroups,
+        createGroupStageMatches, 
+        getSortedGroupStandings,
+        recalculateAllParticipantStats,
+        getKnockoutStageName
+        } = require("../helpers/tournamentFunctions");
 
 //import models
 const Tournament = require("../models/tournament.model");
@@ -245,8 +253,6 @@ module.exports.concludeGroupStage = async (req, res) => {
                 };
             }));
 
-            console.log("✅ Sorted standings:", standings);
-
             // 🏆 Extract the top two participants from the sorted standings
             const groupWinner = tournament.participants.find(
                 p => p._id.toString() === standings[0]._id.toString()
@@ -305,6 +311,22 @@ module.exports.concludeGroupStage = async (req, res) => {
 
 //Create Knockout Matches
 module.exports.createKnockoutMatches = async (req, res) => {
+    /**
+     * This function creates knockout matches based on the finalists from the concluded group stage.
+     * 
+     * It handles both scenarios: 
+     * 1. When there is only one group, it creates a single grand final match.
+     * 2. When there are multiple groups, it pairs the winners and runners-up from different groups
+     * 
+     * When there are multiple groups, it creates an empty match for each round 
+     * that is linked to the matches from the previous round. This ensures that 
+     * each winner has a designated match to flow into as the tournament progresses.
+     * 
+     * The function manually generates ObjectIds for all matches so that links between 
+     * rounds (via `nextMatchId` and `nextSlotIndex`) can be defined before inserting them.
+     * All matches are flattened and inserted into the database in one batch, and the 
+     * tournament is updated with the full knockout match list.
+     */
     const tournamentId = req.params.id;
     try {
         //1. Find the tournment by id and populate finalists
@@ -323,7 +345,7 @@ module.exports.createKnockoutMatches = async (req, res) => {
             const allKnockoutMatches = []
             let matchNumber = tournament.matches.length + 1; // Start match numbering from the last match number
 
-            // If there is only one Group then a single final match will be created
+            // IF THERE IS ONLY ONE GROUP THEN A SINGLE FINAL MATCH WILL BE CREATED
             if( groups.length === 1){
                 const [firstPlace, secondPlace] = finalists;
                 console.log("🏆 Grand Finalists:");
@@ -337,7 +359,7 @@ module.exports.createKnockoutMatches = async (req, res) => {
                         { participantId: secondPlace.participant, score: 0 },
                     ],
                     matchNumber: matchNumber++,
-                    stage: 'final',
+                    stage: 'Final',
                     status: 'pending'
                 };
                 //push the match to the allKnockoutMatches array
@@ -350,9 +372,9 @@ module.exports.createKnockoutMatches = async (req, res) => {
                 console.log("✅ Grand Final Match Created:", grandFinalMatch);
                 return res.json({ message: "Grand Final Match Created", match: grandFinalMatch });
 
-            //handle multiple groups
+            //IF THERE ARE MULTIPLE GROUPS
             }else{
-                //organize all finalist by their group
+                //organize all finalist by their group and rank 1st or 2nd place
                 const finalistsByGroup = finalists.reduce((groupedFinalists, finalist) => {
                     const group = finalist.participant.groupName || "Unknown Group";
                     if(!groupedFinalists[group]){
@@ -364,10 +386,9 @@ module.exports.createKnockoutMatches = async (req, res) => {
                         group: group,
                         rank: finalist.rank
                     });
-                    console.log(`🧩 Grouping finalist: ${finalist.participant.participantName} into ${group}`);
                     return groupedFinalists;
-                },{});
-                
+                }, {});
+
                 // Log the grouped finalists array
                 console.log("📊 Finalists grouped by group name (stringified IDs):");
                 console.dir(
@@ -389,17 +410,27 @@ module.exports.createKnockoutMatches = async (req, res) => {
                 // access the groups array from the finalistsByGroup object
                 const groupKeys = Object.keys(finalistsByGroup);
 
-                // iterate through each group
+                // CREATE FIRST ROUND OF MATCHES 
                 for( let i = 0; i < groupKeys.length; i+= 2){
                     // get the current groups first index and the next groups second index 
-                    const group1 = groupKeys[i]; // ex "Group A: group winner
-                    const group2 = groupKeys[i + 1]; // ex "Group B: group runner up
+                    const group1 = groupKeys[i]; // ex "Group A:[x, ] group winner 
+                    const group2 = groupKeys[i + 1]; // ex "Group B [ , x]: group runner up
 
                     const group1Finalists = finalistsByGroup[group1];
                     const group2Finalists = finalistsByGroup[group2];
 
-                    //Create knockout matches for each group pair
+                    //Manually create match IDs to link matches to matches in future rounds
+                    const matchId1 = new mongoose.Types.ObjectId();
+                    const matchId2 = new mongoose.Types.ObjectId();
+
+                    // Validate that we have enough finalists from each group
+                    if (!group1Finalists[0] || !group1Finalists[1] || !group2Finalists[0] || !group2Finalists[1]) {
+                    return res.status(400).json({ message: "Finalist data is incomplete or unbalanced for knockout generation." });
+                    }
+
+                    //CREATE KNOCKOUT MATCHES FOR EACH GROUP PAIR
                     const match1 = {
+                        _id: matchId1,
                         participants: [
                             { participantId: group1Finalists[0].participant, score: 0 },
                             { participantId: group2Finalists[1].participant, score: 0 }
@@ -410,6 +441,7 @@ module.exports.createKnockoutMatches = async (req, res) => {
                     };
 
                     const match2 = {
+                        _id: matchId2,
                         participants: [
                             { participantId: group2Finalists[0].participant, score: 0 },
                             { participantId: group1Finalists[1].participant, score: 0 }
@@ -423,7 +455,50 @@ module.exports.createKnockoutMatches = async (req, res) => {
                     knockOutRounds[0].push(match1);
                     knockOutRounds[0].push(match2);
                 }
-                const insertedMatches = await Match.insertMany(knockOutRounds[0]);
+
+                //GENERATE EMPTY MATCHES FOR NEXT ROUNDS BASED ON THE NUMBER OF MATCHES IN THE FIRST ROUND
+                //loop through each round
+                for(let i = 0; i < knockOutRounds.length -1; i++){
+                    const currentRound = knockOutRounds[i];
+                    const nextRound = knockOutRounds[i + 1];
+
+                    //inner loop to create matches for next round
+                    for(let j = 0; j < currentRound.length; j+=2){
+                        let match1 = currentRound[j];
+                        let match2 = currentRound[j + 1];
+
+                        // Id for next round match
+                        const nextMatchId = new mongoose.Types.ObjectId();
+
+                        const nextMatch = {
+                            _id: nextMatchId,
+                            participants: [
+                                { participantId:null, score: 0 },
+                                { participantId:null, score: 0 }
+                            ],
+                            matchNumber: matchNumber++,
+                            stage: getKnockoutStageName(i + 1, totalRounds),
+                            status: 'pending'
+                        };
+                        //push the next match to the next round of knockout matches
+                        nextRound.push(nextMatch);
+
+                        //link the current matches to the next match
+                        match1.nextMatchId = nextMatchId;
+                        match1.nextSlotIndex = 0;
+
+                        match2.nextMatchId = nextMatchId;
+                        match2.nextSlotIndex = 1;
+                    }
+
+                }
+                //INSERT ALL KNOCKOUT MATCHES INTO THE DB
+                const allMatchesToInsert = knockOutRounds.flat();
+                console.log("All Knockout Matches to be inserted:", allMatchesToInsert);
+                const insertedMatches = await Match.insertMany(allMatchesToInsert);
+                console.log("Total Knockout Matches:", insertedMatches.length); // should be 3
+
+                const matchIds = insertedMatches.map(match => match._id);
 
                 // Populate participantId with participantName and teamName
                 await Match.populate(insertedMatches, {
@@ -431,12 +506,16 @@ module.exports.createKnockoutMatches = async (req, res) => {
                 select: 'participantName teamName'
                 });
 
-                const matchIds = insertedMatches.map(match => match._id);
 
                 console.log("✅ Knockout Matches Created:");
+                //get participant name or default to "TBD"
+                const getName = (p) => p?.participantId?.participantName || "TBD";
+
                 insertedMatches.forEach(match => {
                 const [p1, p2] = match.participants;
-                console.log(`- Match ${match.matchNumber}: ${p1.participantId.participantName} vs ${p2.participantId.participantName} | Stage: ${match.stage}`);
+                console.log(`- Match ${match.matchNumber}: ${getName(p1)} vs  ${getName(p2)}| Stage: ${match.stage}`);
+                console.log(`  Next Match ID: ${match.nextMatchId || 'None'}`);
+                console.log(`  Next Slot Index: ${match.nextSlotIndex ?? 'None'}`);
                 });
 
                 //save the matches to the tournament
