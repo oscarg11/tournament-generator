@@ -1,5 +1,8 @@
 //Backend helper functions
-const { determineGroupMatchResult, recalculateAllParticipantStats, getSortedGroupStandings } = require("../helpers/tournamentFunctions");
+const { determineKnockoutMatchResult,
+        recalculateAllParticipantStats,
+        getSortedGroupStandings
+        } = require("../helpers/tournamentFunctions");
 
 const Match = require("../models/match.model");
 const Tournament = require("../models/tournament.model");
@@ -8,7 +11,7 @@ const Participant = require("../models/participant.model");
 module.exports.getGroupStageMatches = async (req, res) => {
     try {
         const { id } = req.params;
-        console.log("Get Group stage matches for tournament ID:", id);
+        console.log(`📋 [GetGroupStageMatches] Tournament ID: ${id}`);
 
         const tournament = await Tournament.findById(id)
             .populate({
@@ -21,12 +24,20 @@ module.exports.getGroupStageMatches = async (req, res) => {
             return res.status(404).json({ message: "Tournament not found!" });
         }
 
+        console.log(`✅ Tournament "${tournament.tournamentName}" found`);
+        console.log(`📦 Found ${tournament.matches.length} group stage matches`);
+
         // ✅ Group matches by rounds
         const groupedMatches = tournament.matches.reduce((acc, match) => {
             if (!acc[match.round]) acc[match.round] = [];
             acc[match.round].push(match);
             return acc;
         }, {});
+
+        // Log grouped matches
+        Object.entries(groupedMatches).forEach(([round, matches]) => {
+        console.log(`  🌀 Round ${round}: ${matches.length} matches`);
+        });
 
         // ✅ Convert object to array sorted by round number
         const roundsArray = Object.keys(groupedMatches)
@@ -35,7 +46,7 @@ module.exports.getGroupStageMatches = async (req, res) => {
 
         res.json({ matches: roundsArray }); // ✅ Return matches grouped by round
     } catch (err) {
-        console.error("Error fetching group stage matches:", err);
+        console.error(`❌ [GetGroupStageMatches] Error:`, err.message);
         res.status(500).json({ message: "Something went wrong", error: err });
     }
 }
@@ -44,14 +55,18 @@ module.exports.getGroupStageMatches = async (req, res) => {
 module.exports.getKnockoutStageMatches = async (req, res) => {
     try {
         const { id } = req.params;
-        console.log("Get Knockout stage matches for tournament ID:", id);
+        console.log(`🥊 [GetKnockoutStageMatches] Tournament ID: ${id}`);
 
         const tournament = await Tournament.findById(id)
             .populate({
                 path: 'matches',
-                match: { stage: { $ne: 'group'} } // filter in knockout matches only
+                match: { stage: { $ne: 'group'} }, // filter in knockout matches only
+                populate: {// helps diplay names in server logs
+                    path: 'participants.participantId',
+                    model: 'Participant',
+                    select: 'participantName'
+                }
             });
-            console.log("tournament retrieved from GetKnockoutStageMatches:", tournament);
         
         //validate tournament
         if (!tournament) {
@@ -59,18 +74,30 @@ module.exports.getKnockoutStageMatches = async (req, res) => {
             return res.status(404).json({ message: "Tournament not found!" });
         }
 
+        console.log(`✅ Tournament "${tournament.tournamentName}" found`);
+        console.log(`📦 Found ${tournament.matches.length} knockout stage matches`);
+
         //group matches by stage
         const groupedMatchesByStage = tournament.matches.reduce((acc, match) => {
             if(!acc[match.stage]) acc[match.stage] = [];
                 acc[match.stage].push(match);
             return acc;
         }, {});
-        console.log("Grouped matches by stage From getKnockoutMatches:", groupedMatchesByStage);
+
+        // Log grouped matches with participant names
+        Object.entries(groupedMatchesByStage).forEach(([stage, matches]) => {
+        console.log(`\n📍 Stage "${stage}": ${matches.length} matches`);
+        matches.forEach(m => {
+            const p1 = m.participants?.[0]?.participantId?.participantName || "TBD";
+            const p2 = m.participants?.[1]?.participantId?.participantName || "TBD";
+            console.log(`   Match ${m.matchNumber}: ${p1} vs ${p2}`);
+        });
+        });
 
         res.json({ matches: groupedMatchesByStage }); // Return matches grouped by stage
 
     } catch (err) {
-        console.error("Error fetching knockout stage matches:", err);
+        console.error(`❌ [GetKnockoutStageMatches] Error:`, err.message);
         res.status(500).json({ message: "Something went wrong", error: err });
     }
 }
@@ -80,9 +107,11 @@ module.exports.saveMatches = async (req, res) => {
     try {
         const { id } = req.params; // Tournament ID
         const { matches } = req.body; // Array of matches
+        console.log(`📌 [saveMatches] called — Tournament ID: ${id}`);
 
         // Validate matches input
         if (!Array.isArray(matches) || matches.length === 0) {
+            console.log(`❌ [saveMatches] Invalid matches array`);
             return res.status(400).json({ message: "Matches must be a non-empty array." });
         }
 
@@ -98,12 +127,14 @@ module.exports.saveMatches = async (req, res) => {
         );
 
         if (!tournament) {
+            console.log(`❌ [saveMatches] Tournament not found: ID ${id}`);
             return res.status(404).json({ message: "Tournament not found!" });
         }
 
         res.json({ success: true, tournament, message: "Matches added successfully!" });
+        console.log(`✅ [saveMatches] Matches saved and tournament updated`);
     } catch (err) {
-        console.error("Error saving matches:", err);
+        console.error(`❌ [saveMatches] Error: ${err.message}`);
         res.status(500).json({ message: "Something went wrong", error: err });
     }
 };
@@ -121,15 +152,17 @@ module.exports.updateGroupStageMatchScores = async (req, res) => {
         // Extract parameters from request
         const { tournamentId, roundIndex, matchIndex } = req.params;
 
-        console.log(`Updating scores for tournament ID: ${tournamentId}, Round: ${roundIndex}, Match: ${matchIndex}`);
-        console.log(`Scores recieved: P1: ${participant1Score}, P2: ${participant2Score}`);
-        
+        console.log(`✏️ [UpdateGroupStageMatchScores] Tournament ID: ${tournamentId}`);
+        console.log(`   Round ${roundIndex}, Match ${matchIndex}`);
+        console.log(`   New Scores: P1=${participant1Score} | P2=${participant2Score}`);
+
         // Find the tournament by ID
         const tournament = await Tournament.findById(tournamentId)
             .populate('matches')
             .populate('participants');
 
         if (!tournament) {
+            console.log(`❌ [UpdateGroupStageMatchScores] Tournament not found`);
             return res.status(404).json({ message: "Tournament not found!" });
         }
 
@@ -137,6 +170,7 @@ module.exports.updateGroupStageMatchScores = async (req, res) => {
         const roundMatches = tournament.matches.filter(match => match.round === parseInt(roundIndex));
         //validate rounds
         if(!roundMatches.length){
+            console.log(`❌ [UpdateGroupStageMatchScores] Match not found`);
             return res.status(404).json({ message: "Round not found!"})
         }
         console.log("Filtered round matches", roundMatches);
@@ -146,12 +180,16 @@ module.exports.updateGroupStageMatchScores = async (req, res) => {
             return res.status(404).json({ message: "Match not found!"});
         }
 
+        //define match and validate match
         const match = roundMatches[matchIndex];
-        //ensure match is valid
         if(!match || !match.participants || match.participants.length < 2){
+            console.error("❌ Match data invalid or missing participants!");
             return res.status(400).json({ message: "Invalid match data!"});
         }
         console.log("Match found:", match)
+
+        console.log(`⚔️ Updating Match ${match.matchNumber || "N/A"}:`);
+        console.log(`   🆚 ${match.participants[0]?.participantId?.participantName || "TBD"} vs ${match.participants[1]?.participantId?.participantName || "TBD"}`);
 
         //Update scores 
         match.participants[0].score = participant1Score;
@@ -166,16 +204,22 @@ module.exports.updateGroupStageMatchScores = async (req, res) => {
         
         // get group info
         const groupIndex = tournament.groups.findIndex(g => g.groupName === match.group);
-        if (groupIndex === -1) return res.status(404).json({ message: "Group not found!" });
-        // get group object
+        if (groupIndex === -1) {
+            console.log(`❌ Group "${match.group}" not found in tournament`);
+            return res.status(404).json({ message: "Group not found!" });
+        }
+
+        // Define group
         const group = tournament.groups[groupIndex];
+        console.log(`🏷 Group: ${group.groupName} (Index ${groupIndex})`);
+
         //get group participants
         const groupParticipantIds = tournament.groups[groupIndex].participants;
-        
         //get all matches in the group
         const matchesForGroup = tournament.matches.filter(
                     m => m.group === group.groupName
                 );
+        console.log(`📦 Total matches in group "${group.groupName}": ${matchesForGroup.length}`);
 
         // 🔄 Flatten match participant references for sorting
         const remappedMatches = matchesForGroup.map(match => {
@@ -191,7 +235,7 @@ module.exports.updateGroupStageMatchScores = async (req, res) => {
 
         //sort group standings
         const sortedGroupStandings = getSortedGroupStandings(groupParticipants, remappedMatches);
-        console.log("🧪 Sorted standings:", sortedGroupStandings);
+        console.log("📈 Sorted standings:", sortedGroupStandings.map(p => `${p.participantName} (${p.points} pts)`));
 
         // Save only participant IDs to group
         tournament.groups[groupIndex].participants = sortedGroupStandings.map(p => p._id);
@@ -212,11 +256,12 @@ module.exports.updateGroupStageMatchScores = async (req, res) => {
             (a, b) => idOrder.indexOf(a._id.toString()) - idOrder.indexOf(b._id.toString())
         );
         
-        //re-fetch populated group
+        //re-fetch updated populated group
         const updatedGroup = tournament.groups[groupIndex];
-        console.log("✅ Final populated group sent to frontend:", updatedGroup.participants);
-
-        console.log("✅ Tournament saved with updated group standings.");
+        console.log("✅ Final Group Standings Sent to Frontend:");
+        updatedGroup.participants.forEach((p, idx) =>
+            console.log(`   ${idx + 1}. ${p.participantName} (${p.points} pts)`)
+        );
 
         //success response
         return res.json({
@@ -231,15 +276,17 @@ module.exports.updateGroupStageMatchScores = async (req, res) => {
     }
 };
 
-//reset group stage match
+//RESET GROUP STAGE MATCH
 module.exports.resetGroupStageMatch = async (req, res) => {
     try {
         const { tournamentId, roundIndex, matchIndex } = req.params;
+        console.log(`📌 [resetGroupStageMatch] called — Tournament ID: ${tournamentId}, Round: ${roundIndex}, Match: ${matchIndex}`);
 
         // Find the tournament by ID
         const tournament = await Tournament.findById(tournamentId).populate('matches').populate('participants');
 
         if (!tournament) {
+            console.log(`❌ [resetGroupStageMatch] Tournament not found: ID ${tournamentId}`);
             return res.status(404).json({ message: "Tournament not found!" });
         }
 
@@ -248,11 +295,11 @@ module.exports.resetGroupStageMatch = async (req, res) => {
         const match = matchesInRound[matchIndex];
 
         if(!match){
+            console.log(`❌ [resetGroupStageMatch] Match not found at index ${matchIndex} in round ${roundIndex}`);
             return res.status(404).json({ message: "Match not found!" });
         }
 
         //reset match values
-        
         match.participants[0].score = 0;
         match.participants[1].score = 0;
         match.status = 'pending';
@@ -276,28 +323,31 @@ module.exports.resetGroupStageMatch = async (req, res) => {
 
         tournament.markModified('groups');
         await tournament.save();
+
+        console.log(`✅ [resetGroupStageMatch] Match reset and tournament stats recalculated`);
     
         res.json({ success: true, message: "Match RESET and tournament stats re-calculated successfully!" });
     }catch(err){
-        console.error("❌ Error RESETTING match:",err);
+        console.error(`❌ [resetGroupStageMatch] Error: ${err.message}`);
         res.status(500).json({ message: "Failed to reset match", error: err });
     }
 }
 
-//Update Knockout Stage match
+//UPDATE KNOCKOUT STAGE MATCH
 module.exports.updateKnockoutStageMatch = async(req, res) => {
-    const { participant1Score, participant2Score } = req.body;
+    const { participant1Score, participant2Score, knockoutMatchTieBreaker } = req.body;
     
     //validate request so that both scores are provided
     if(participant1Score === undefined || participant2Score === undefined){
         return res. status(400).json({ message: "Both Participant scores are required"})
     }
-
+    
     try {
         //Extract parameters from request
         const { tournamentId, stageName, matchIndex } = req.params;
-        console.log(`Updating scores for tournament ID: ${tournamentId}, Stage: ${stageName}, Match: ${matchIndex}`);
-        console.log(`Scores recieved: P1: ${participant1Score}, P2: ${participant2Score}`);
+        console.log(`📊 [updateKnockoutStageMatch] called — Tournament ID: ${tournamentId}, Stage: ${stageName}, Match: ${matchIndex}`);
+        console.log(`📊 Updating match: Tournament ${tournamentId}, Stage: ${stageName}, Match: ${matchIndex}`);
+        console.log(`⚽ Scores: P1: ${participant1Score}, P2: ${participant2Score}`);
 
         // Find the tournament by ID
         const tournament = await Tournament.findById(tournamentId)
@@ -305,6 +355,7 @@ module.exports.updateKnockoutStageMatch = async(req, res) => {
             .populate('participants');
 
         if (!tournament) {
+            console.log(`❌ [updateKnockoutStageMatch] Tournament not found: ID ${tournamentId}`);
             return res.status(404).json({ message: "Tournament not found!" });
         }
 
@@ -312,28 +363,42 @@ module.exports.updateKnockoutStageMatch = async(req, res) => {
         const matchesInStage = tournament.matches.filter(m => m.stage === stageName);
         //validate matches
         if(!matchesInStage.length){
+            console.log(`❌ [updateKnockoutStageMatch] Invalid match data or participants missing`);
             return res.status(404).json({ message: "Stage not found!"})
         }
         console.log("Filtered stage matches", matchesInStage);
 
         //define the match
         const match = matchesInStage[matchIndex];
-         //ensure match is valid
         if(!match || !match.participants || match.participants.length < 2){
             return res.status(400).json({ message: "Invalid match data!"});
         }
-        console.log("Match found:", match)
+
+        //define participants
+        const [p1, p2] = match.participants;
+        const participant1 = tournament.participants.find(p => p._id.toString() === p1.participantId.toString());
+        const participant2 = tournament.participants.find(p => p._id.toString() === p2.participantId.toString()); 
 
         //Update Scores
         match.participants[0].score = participant1Score;
         match.participants[1].score = participant2Score;
-        match.status = 'completed'; 
+        match.knockoutMatchTieBreaker = knockoutMatchTieBreaker;
+
+        console.log(`⚔️ Updating Knockout Match ${match.matchNumber || "N/A"}: ${participant1?.participantName || "TBD"} vs ${participant2?.participantName || "TBD"}`);
+
+        //call determine knockout match result function
+        console.log("🔍 calling Determining knockout match function for the result...");
+        determineKnockoutMatchResult(participant1, participant2, {
+            participant1: participant1Score,
+            participant2: participant2Score
+        }, match, knockoutMatchTieBreaker);
+        
         await match.save();
         console.log("✅ Knockout Match updated and saved successfully!", match);
 
 
     } catch (error) {
-        console.error("❌ Error updating knockout stage match:", error);
+        console.error(`❌ [updateKnockoutStageMatch] Error: ${error.message}`);
         res.status(500).json({ message: "Failed to update match", error });
         
     }

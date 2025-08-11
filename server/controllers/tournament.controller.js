@@ -18,16 +18,17 @@ const Match = require("../models/match.model");
 module.exports.createTournament = async (req, res) => {
     try {
         const { tournamentName, format, numberOfGroupStageLegs, numberOfParticipants, participants } = req.body;
-        console.log("createTournament controller",req.body);
+        console.log(`🏆 [CreateTournament] Creating "${tournamentName}" - ${format} format with ${numberOfParticipants} participants`);
         
         //save participants to the db
         const participantInstances = await Participant.insertMany(participants);
         const participantIds = participantInstances.map(p => p._id);
 
-        console.log("Participant IDs:", participantIds);
+        console.log(`✅ Created ${participantIds.length} participants in database`);
         
         // Shuffle participants
         const shuffledParticipants = shuffle([...participantIds]);
+        console.log(`🔀 Participants shuffled for random group assignment`);
         console.log("Participants in createTournament AFTER shuffle():", shuffledParticipants);
 
         let groups = [];
@@ -37,7 +38,7 @@ module.exports.createTournament = async (req, res) => {
         if(format === "groupAndKnockout"){
             //CREATE GROUPS
             groups = createGroups(shuffledParticipants);
-            console.log("✅ Groups Created:", JSON.stringify(groups, null, 2));
+            console.log(`✅ Created ${groups.length} groups: ${groups.map(g => g.groupName).join(', ')}`);
 
             //assign groups to participant objects
             for (const group of groups){
@@ -46,11 +47,12 @@ module.exports.createTournament = async (req, res) => {
                     { $set: { groupName: group.groupName } }
                 );
             }
+            console.log(`✅ Group assignments saved to participant records`);
 
             //GENERATE GROUP STAGE MATCHES
             const { allMatches } = createGroupStageMatches(groups, numberOfGroupStageLegs);
             matches = allMatches;
-            // console.log("✅ Matches Generated:", JSON.stringify(matches, null, 2));
+            console.log(`✅ Generated ${matches.length} group stage matches`);
         }
         
         const newTournament = await Tournament.create({
@@ -65,20 +67,20 @@ module.exports.createTournament = async (req, res) => {
         
         // Save matches to the database
         if (matches.length > 0) {
-            console.log("✅ Inserting matches into DB...");
+            console.log(`💾 Inserting ${matches.length} matches into database...`);
             const matchInstances = await Match.insertMany(matches);
             const matchIds = matchInstances.map((match) => match._id);
             
             // console.log("✅ Inserted Match IDs:", matchIds);
             newTournament.matches = matchIds;
             await newTournament.save();
-            console.log("✅ Tournament updated with matches.");
+            console.log(`✅ Tournament "${tournamentName}" updated with matches.`);
         }
         
-        console.log("🎉 NEW TOURNAMENT CREATED SUCCESSFULLY!");
+        console.log(`🎉 Tournament "${tournamentName}" created successfully!`);
         res.json({ tournament: newTournament });
     } catch (err) {
-        console.error('Error Creating Tournament:', err);
+        console.error('❌ [CreateTournament] Error:', err.message);
         res.status(500).json({ message: "Something went wrong in creating tournament", error: err });
     }
 }
@@ -98,11 +100,11 @@ module.exports.findAllTournaments = async (req, res) => {
                 }
             }
         }
+        console.log(`📋 [FindAllTournaments] Retrieved ${Alltournaments.length} tournaments`);
         res.json(Alltournaments);
     } catch (err){
-        console.error('Error:', err);
+        console.error('❌ [FindAllTournaments] Error:', err.message);
         res.status(500).json({ message: "Something went wrong", error: err });
-        
     }
 }
 
@@ -114,6 +116,7 @@ module.exports.findOneTournament = async (req,res) => {
             .populate('matches');
             
         if(!tournament){
+            console.log(`❌ [FindOneTournament] Tournament not found: ${tournament}`);
             return res.status(404).json({ message: "Tournament not found!" });
         }
         //populate groups with participants
@@ -132,9 +135,10 @@ module.exports.findOneTournament = async (req,res) => {
                 );
             }
         }
+        console.log(`📄 [FindOneTournament] Retrieved: "${tournament.tournamentName}"`);
         res.json( {oneTournament: tournament} );
     } catch (err){
-        console.error('Error:', err);
+        console.error('❌ [FindOneTournament] Error:', err.message);
         res.status(500).json({ message: "Something went wrong", error: err });
         
     }
@@ -146,11 +150,11 @@ module.exports.updateTournament = (req, res) => {
         .populate('participants')
         .populate('matches')
         .then(updatedTournament => {
-            console.log("Tournament UPDATED successfully!");
+            console.log(`✅ [UpdateTournament] Updated: "${updatedTournament.tournamentName}"`);
             res.json({ tournament: updatedTournament });
         })
         .catch(err => {
-            console.error('Error:', err);
+            console.error(`❌ [UpdateTournament] Error:`, err.message);
             res.json({ message: "Something went wrong", error: err });
         });
 }
@@ -159,19 +163,19 @@ module.exports.updateTournament = (req, res) => {
 module.exports.deleteTournament = (req, res) => {
     Tournament.findByIdAndDelete(req.params.id)
         .then(result => {
-            console.log("TOURNAMENT DELETED SUCCESSFULLY!");
+            console.log(`🗑️ [DeleteTournament] Tournament deleted successfully`);
             res.json({ result: result });
         })
         .catch(err => {
-            console.error('Error:', err);
+            console.error(`❌ [DeleteTournament] Error:`, err.message);
             res.json({ message: "Something went wrong", error: err });
         });
 }
 
 //Conclude Group Stage
 module.exports.concludeGroupStage = async (req, res) => {
-    console.log("Conclude Group Stage Triggered!");
     const tournamentId = req.params.id;
+    console.log(`🏁 [ConcludeGroupStage] Starting for tournament: ${tournamentId}`);
 
     try {
         //1. Find and populate tournament data
@@ -180,29 +184,23 @@ module.exports.concludeGroupStage = async (req, res) => {
         .populate('matches');
         //validate tournament
             if (!tournament) {
+                console.log(`❌ [ConcludeGroupStage] Tournament not found: ${tournamentId}`);
                 return res.status(404).json({ message: "Tournament not found!" });
             }
             console.log("✅ Tournament found:", tournament._id);
 
-             //Deep population of participants within groups
+            //Deep population of participants within groups
             await tournament.populate({
                 path: 'groups.participants',
                 select: 'participantName teamName points goalDifference goalsScored _id'
             });
-            
-            console.log("✅ Groups data:", tournament.participants.map(p => ({
-                id: p._id,
-                name: p.participantName,
-                team: p.teamName,
-                points: p.points,
-                goalDifference: p.goalDifference,
-                goalsScored: p.goalsScored
-            })));
+
+            console.log(`✅ Found tournament: "${tournament.tournamentName}" with ${tournament.groups.length} groups`);
             
             //2. final recalculation of all participants stats
             await recalculateAllParticipantStats(tournament);
             await tournament.save();
-            console.log("✅ Final Group stage Stats recalculated and saved.");
+            console.log(`📊 Final group stage stats recalculated`);
 
             //3. Initialize finalist array
             const finalists = [];
@@ -218,13 +216,6 @@ module.exports.concludeGroupStage = async (req, res) => {
                 // 🔄 remap matches to plain objects and flatten participants array
                 const remappedMatches = matchesForGroup.map(match => match.toObject());
 
-            console.log("🔄 Before Sorting Logic:", group.participants.map(p => ({
-                id: p._id,
-                name: p.participantName,
-                points: p.points,
-                goalDifference: p.goalDifference,
-                goalsScored: p.goalsScored
-            })));
             
             // 🏆 Get the sorted standings for the group
             const standings = getSortedGroupStandings(
@@ -261,12 +252,9 @@ module.exports.concludeGroupStage = async (req, res) => {
                 p => p._id.toString() === standings[1]._id.toString()
             );
 
-            console.log("🏆 FINALISTS SELECTED:", {
-                winner: groupWinner ? groupWinner.participantName : "Not found",
-                winnerTeam: groupWinner ? groupWinner.teamName : "Not found",
-                runnerUp: groupRunnerUp ? groupRunnerUp.participantName : "Not found",
-                runnerUpTeam: groupRunnerUp ? groupRunnerUp.teamName : "Not found"
-            });
+            console.log(`🏆 Group ${group.groupName} Results:`);
+            console.log(`   Winner: ${groupWinner?.participantName} (${groupWinner?.teamName})`);
+            console.log(`   Runner-up: ${groupRunnerUp?.participantName} (${groupRunnerUp?.teamName})`);
             
             // 🔄 Push to finalist array
             finalists.push(
@@ -289,18 +277,15 @@ module.exports.concludeGroupStage = async (req, res) => {
 
         // 5. Save finalists to tournament
         tournament.finalists = finalists;
-        //what is in the finalist array?
-        console.log("Finalists in conclude group stage", tournament.finalists)
-
         // disable group stage matches
         tournament.groupStageConcluded = true;
-        console.log("✅ Group stage concluded:", tournament.groupStageConcluded);
 
         await tournament.save();
+        console.log(`🎯 Group stage concluded with ${finalists.length} finalists advancing to knockout stage`);
         return res.json({ finalists: tournament.finalists });
 
     } catch (error) {
-        console.error("🚨 Error in concludeGroupStage:", error.message);
+        console.error(`❌ [ConcludeGroupStage] Error:`, error.message);
         console.error(error.stack);
         res.status(500).json({ 
             message: "Something went wrong", 
@@ -328,6 +313,7 @@ module.exports.createKnockoutMatches = async (req, res) => {
      * tournament is updated with the full knockout match list.
      */
     const tournamentId = req.params.id;
+    console.log(`🥊 [CreateKnockoutMatches] Starting for tournament: ${tournamentId}`);
     try {
         //1. Find the tournment by id and populate finalists
         const tournament = await Tournament.findById(tournamentId)
@@ -340,17 +326,16 @@ module.exports.createKnockoutMatches = async (req, res) => {
             console.log("✅ Tournament found:", tournament._id);
 
             const finalists = tournament.finalists;
-            console.log("FINALIST Array called from createKockout Controller:", finalists)
             const groups = tournament.groups;
             const allKnockoutMatches = []
             let matchNumber = tournament.matches.length + 1; // Start match numbering from the last match number
+            console.log("FINALIST Array called from createKnockoutMatches Controller:", finalists)
 
             // IF THERE IS ONLY ONE GROUP THEN A SINGLE FINAL MATCH WILL BE CREATED
             if( groups.length === 1){
                 const [firstPlace, secondPlace] = finalists;
-                console.log("🏆 Grand Finalists:");
-                console.log(`1st Place: ${firstPlace.participant.participantName} | Group: ${firstPlace.participant.groupName} | Rank: 1`);
-                console.log(`2nd Place: ${secondPlace.participant.participantName} | Group: ${secondPlace.participant.groupName} | Rank: 2`);
+                console.log(`🏆 Creating Grand Final:`);
+                console.log(`   ${firstPlace.participant.participantName} vs ${secondPlace.participant.participantName}`);
 
                 //create a single knockout match for the final
                 const grandFinalMatch = {
@@ -425,8 +410,9 @@ module.exports.createKnockoutMatches = async (req, res) => {
 
                     // Validate that we have enough finalists from each group
                     if (!group1Finalists[0] || !group1Finalists[1] || !group2Finalists[0] || !group2Finalists[1]) {
+                    console.log(`❌ Finalist data incomplete for groups ${group1} and ${group2}`);
                     return res.status(400).json({ message: "Finalist data is incomplete or unbalanced for knockout generation." });
-                    }
+                }
 
                     //CREATE KNOCKOUT MATCHES FOR EACH GROUP PAIR
                     const match1 = {
@@ -451,13 +437,15 @@ module.exports.createKnockoutMatches = async (req, res) => {
                         status: 'pending'
                     };
 
+                    console.log(`⚔️ ${getKnockoutStageName(0, totalRounds)} Matches:`);
+                    console.log(`   Match ${match1.matchNumber}: ${group1Finalists[0].participantName} vs ${group2Finalists[1].participantName}`);
+                    console.log(`   Match ${match2.matchNumber}: ${group2Finalists[0].participantName} vs ${group1Finalists[1].participantName}`);
+
                     //push the matches to the KnockOutRounds array
-                    knockOutRounds[0].push(match1);
-                    knockOutRounds[0].push(match2);
+                    knockOutRounds[0].push(match1, match2);
                 }
 
                 //GENERATE EMPTY MATCHES FOR NEXT ROUNDS BASED ON THE NUMBER OF MATCHES IN THE FIRST ROUND
-                //loop through each round
                 for(let i = 0; i < knockOutRounds.length -1; i++){
                     const currentRound = knockOutRounds[i];
                     const nextRound = knockOutRounds[i + 1];
@@ -489,16 +477,14 @@ module.exports.createKnockoutMatches = async (req, res) => {
 
                         match2.nextMatchId = nextMatchId;
                         match2.nextSlotIndex = 1;
+                        console.log(`🔗 Match ${match1.matchNumber} & ${match2.matchNumber} winners advance to ${nextStageName} (Match ${nextMatch.matchNumber})`);
                     }
-
                 }
                 //INSERT ALL KNOCKOUT MATCHES INTO THE DB
                 const allMatchesToInsert = knockOutRounds.flat();
-                console.log("All Knockout Matches to be inserted:", allMatchesToInsert);
                 const insertedMatches = await Match.insertMany(allMatchesToInsert);
-                console.log("Total Knockout Matches:", insertedMatches.length); // should be 3
-
                 const matchIds = insertedMatches.map(match => match._id);
+                console.log(`💾 Inserted ${insertedMatches.length} knockout matches into database`);
 
                 // Populate participantId with participantName and teamName
                 await Match.populate(insertedMatches, {
@@ -506,8 +492,7 @@ module.exports.createKnockoutMatches = async (req, res) => {
                 select: 'participantName teamName'
                 });
 
-
-                console.log("✅ Knockout Matches Created:");
+                console.log("✅ Knockout Stage Created Successfully:");
                 //get participant name or default to "TBD"
                 const getName = (p) => p?.participantId?.participantName || "TBD";
 
@@ -540,19 +525,22 @@ module.exports.createKnockoutMatches = async (req, res) => {
 // Load tournament data with populated participants and matches
 module.exports.loadTournamentData = async (req, res) => {
     const { tournamentId } = req.params;
+    
     try {
         const tournament = await Tournament.findById(tournamentId)
             .populate('participants')
             .populate('matches');
 
         if (!tournament) {
+            console.log(`❌ [LoadTournamentData] Tournament not found: ${tournamentId}`);
             return res.status(404).json({ message: "Tournament not found!" });
         }
 
+        console.log(`📊 [LoadTournamentData] Loaded: "${tournament.tournamentName}"`);
         res.json({ tournament });
     } catch (err) {
-        console.error("Error loading tournament data:", err);
-        res.status(500).json({ message: "Something went wrong while loading tournament data.", error: err });
+        console.error(`❌ [LoadTournamentData] Error:`, err.message);
+        res.status(500).json({ message: "Something went wrong while loading tournament data.", error: err.message });
     }
 }
 
