@@ -122,8 +122,6 @@ const determineGroupMatchResult = (participant1, participant2, score,match) => {
                 participant2.goalDifference = participant2.goalsScored - participant2.goalsAgainst;
                 participant2.points += POINTS_PER_LOSS;
                 participant2.matchHistory.push("L")
-
-                match.status = 'completed'; // Update match status to completed
             
             //participant 2 wins
             } else if(score.participant1 < score.participant2){
@@ -142,8 +140,6 @@ const determineGroupMatchResult = (participant1, participant2, score,match) => {
                 participant1.goalDifference = participant1.goalsScored - participant1.goalsAgainst;
                 participant1.points += POINTS_PER_LOSS;
                 participant1.matchHistory.push("L")
-
-                match.status = 'completed'; // Update match status to completed
     
             //draw
             }else{
@@ -163,7 +159,6 @@ const determineGroupMatchResult = (participant1, participant2, score,match) => {
                 participant2.points += POINTS_PER_DRAW;
                 participant2.matchHistory.push("D")
 
-                match.status = 'completed'; // Update match status to completed
             }
             
             return {participant1, participant2}
@@ -359,7 +354,134 @@ const getKnockoutStageName = (roundIndex, totalRounds) => {
     return stageNames[roundIndex + offSet]
 }
 
+//Determine Kockout stage match result
+const determineKnockoutMatchResult = (participant1, participant2, score, match, knockoutMatchTieBreaker = {}
+    ) => {
 
+    console.log("🔵 ENTERING DETERMINEKNOCKOUTMATCHRESULT:");
+
+    match.knockoutMatchTieBreaker = knockoutMatchTieBreaker;
+    //if participant 1 wins
+    if(score.participant1 > score.participant2){
+        console.log(`🏆 ${participant1.participantName} wins ${score.participant1}-${score.participant2}`);
+        participant1.matchesPlayed += 1;
+        participant1.wins += 1;
+        participant1.goalsScored += score.participant1;
+        participant1.goalsAgainst += score.participant2;
+        participant1.matchHistory.push("W");
+        match.winner = participant1._id;
+
+        participant2.matchesPlayed += 1;
+        participant2.losses += 1;
+        participant2.goalsScored += score.participant2;
+        participant2.goalsAgainst += score.participant1;
+        participant2.matchHistory.push("L")
+
+    }
+    //if participant 2 wins
+    else if(score.participant2 > score.participant1){
+        console.log(`🏆 ${participant2.participantName} wins ${score.participant2}-${score.participant1}`);
+        participant2.matchesPlayed += 1;
+        participant2.wins += 1;
+        participant2.goalsScored += score.participant2;
+        participant2.goalsAgainst += score.participant1;
+        participant2.matchHistory.push("W");
+        match.winner = participant2._id;
+
+        participant1.matchesPlayed += 1;
+        participant1.losses += 1;
+        participant1.goalsScored += score.participant1;
+        participant1.goalsAgainst += score.participant2;
+        participant1.matchHistory.push("L")
+
+    // if its a draw, call knockout match tie breaker
+    }else{
+        console.log(`⚖️  Match tied ${score.participant1}-${score.participant2}`);
+        participant1.matchesPlayed += 1;
+        participant1.goalsScored += score.participant1;
+        participant1.goalsAgainst += score.participant2;
+
+        participant2.matchesPlayed += 1;
+        participant2.goalsScored += score.participant2;
+        participant2.goalsAgainst += score.participant1;
+
+        //If match is still a draw call knockoutMatchTieBreaker function
+        console.log("🟡 IN DRAW SECTION, about to call knockoutMatchTieBreaking:");
+
+        //call knockoutMatchTieBreaking function
+        const tieBreakerWinner = knockoutMatchTieBreaking({
+            participant1,
+            participant2,
+            score,
+            match,
+            knockoutMatchTieBreaker
+        });
+
+        // If no winner is declared, throw an error
+        if (!tieBreakerWinner) {
+        throw new Error("Match is a draw and no tiebreaker winner was declared.");
+    }
+        //If participant 1 wins
+        if(tieBreakerWinner._id.toString() === participant1._id.toString()){
+            participant1.wins += 1;
+            participant1.matchHistory.push("W");
+
+            participant2.losses += 1;
+            participant2.matchHistory.push("L");
+        }else{
+            //If participant 2 wins
+            participant2.wins += 1;
+            participant2.matchHistory.push("W");
+
+            participant1.losses += 1;
+            participant1.matchHistory.push("L");
+        }
+        match.winner = tieBreakerWinner._id; // Set the winner of the match
+    }
+    return{ participant1, participant2, match}
+}
+
+// Tie-breaking logic for knockout matches
+const knockoutMatchTieBreaking = ({ participant1, participant2, score, knockoutMatchTieBreaker }) => {
+    console.log("🔍 knockoutMatchTieBreaking called");
+    const method = knockoutMatchTieBreaker?.method;
+    const winnerId = knockoutMatchTieBreaker?.winner;
+
+    console.log(`🎯 Tiebreaker selected: ${method}`);
+
+    //check if there is a method selected first
+    if(!method) return null;
+
+    //For extra time and golden goal, determine winner based on scores
+    if(['goldenGoal', 'extraTime'].includes(method)){
+        //if participant 1 wins
+        if(score.participant1 > score.participant2){
+            console.log(`🏆 ${participant1.participantName} wins via ${method}`);
+            return participant1;
+        }
+        //if participant 2 wins
+        if(score.participant2 > score.participant1) {
+            console.log(`🏆 ${participant2.participantName} wins via ${method}`);
+            return participant2;
+        }
+        return null; //still a draw
+    }
+
+    //For manually declared winners( penalty shootout, coin toss, rock-paper-scissors)
+    if(['penaltyShootout', 'coinToss', 'rockPaperScissors'].includes(method)){
+        //participant 1
+        if( winnerId == participant1._id.toString()){
+            console.log(`🏆 ${participant1.participantName} wins via ${method}`);
+            return participant1;
+        }
+        //participant 2
+        if( winnerId == participant2._id.toString()) {
+            console.log(`🏆 ${participant2.participantName} wins via ${method}`);
+            return participant2;
+        }
+        return null;
+    }
+}
 
 module.exports = {
     createGroups,
@@ -370,5 +492,7 @@ module.exports = {
     headToHeadComparison,
     getSortedGroupStandings,
     recalculateAllParticipantStats,
-    getKnockoutStageName
+    getKnockoutStageName,
+    determineKnockoutMatchResult,
+    knockoutMatchTieBreaking
 }
