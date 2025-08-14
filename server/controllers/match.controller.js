@@ -396,6 +396,11 @@ module.exports.updateKnockoutStageMatch = async(req, res) => {
         await match.save();
         console.log("✅ Knockout Match updated and saved successfully!", match);
 
+        return res.status(200).json({ 
+            message: "Match updated successfully",
+            match: match 
+        });
+
 
     } catch (error) {
         console.error(`❌ [updateKnockoutStageMatch] Error: ${error.message}`);
