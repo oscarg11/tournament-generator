@@ -12,6 +12,9 @@ const FinalsStage = ({tournamentData, setTournamentData}) => {
   //tie breaker warning message
   const [tieBreakerWarning, setTieBreakerWarning] = useState("");
 
+  //completed matches via tie breakers
+  const [completedTieBreakerMatch, setCompletedTieBreakerMatch] = useState({});
+
   //Format Display of Selected Tie Breaker
   const formatSelectedTieBreakerName = (method) => {
     const methodNames = {
@@ -33,14 +36,17 @@ const FinalsStage = ({tournamentData, setTournamentData}) => {
   const handleClick = () => {
     console.log("📦 Document was clicked");
   };
-
   document.addEventListener("click", handleClick);
-
   // Clean up to avoid memory leaks
   return () => {
     document.removeEventListener("click", handleClick);
   };
 }, []);
+
+// Add this useEffect near your other useEffect declarations at the top
+useEffect(() => {
+  console.log("👀 completedTieBreakerMatch updated:", completedTieBreakerMatch);
+}, [completedTieBreakerMatch]);
 
 
   //PARTICIPANT LOOKUP FUNCTION TO GET PARTICIPANT NAME AND TEAM NAME
@@ -97,7 +103,6 @@ const FinalsStage = ({tournamentData, setTournamentData}) => {
   });
 }
 
-
   //onChange handler for match score input
   const handleScoreChange = (e, stageName, matchIndex, participantIndex) => {
     const updatedMatch = {...matchData};
@@ -128,6 +133,8 @@ const FinalsStage = ({tournamentData, setTournamentData}) => {
 
         console.log("Participant 1 Score:", p1Score);
         console.log("Participant 2 Score:", p2Score);
+
+        console.log("🔍 Are scores tied?", p1Score === p2Score);
         
         // check if scores are tied
         if( p1Score === p2Score){
@@ -137,8 +144,12 @@ const FinalsStage = ({tournamentData, setTournamentData}) => {
 
           console.log(`🤝 [Draw] Scores tied ${p1Score}-${p2Score}, applying tie breaker: ${method || 'none'}`);
 
-          // if scores require manual winner declaration, submit winner of the match
+          console.log("🔍 Tie-breaker info:", { method, winnerId, tieBreakerKey });
+          console.log("🔍 winnerDeclarationCheck result:", winnerDeclarationCheck(method));
+
+          // if scores require manual winner declaration, submit winner of the match(Penalty Shoot out, coin toss, rock paper scissors)
           if(winnerDeclarationCheck(method)&& winnerId){
+            console.log("🔍 Entering tie-breaker submission block");
             //data to be sent to the backend
             const payload = {
               participant1Score: p1Score,
@@ -148,21 +159,59 @@ const FinalsStage = ({tournamentData, setTournamentData}) => {
                 winner: winnerId || null // will be updated if a winner is declared
               }
             };
+            console.log("🔍 Payload created:", payload);
 
             if (!winnerId || winnerId === "") {
               console.warn("⛔ [Winner] No winner declared for tie breaker");
               setTieBreakerWarning("Please select the winner of the tie breaker.");
               return;
             }
-
+                        console.log("🔍 About to make axios call...");
+            console.log("🔍 Tournament ID:", tournamentData._id);
+            console.log("🔍 URL will be:", `http://localhost:8000/api/tournaments/${tournamentData._id}/knockout-matches/${stageName}/${matchIndex}`);
 
             //✅ UPDATE backend with the new match data
-            await axios.put(
+            const response = await axios.put(
               `http://localhost:8000/api/tournaments/${tournamentData._id}/knockout-matches/${stageName}/${matchIndex}`,
-              payload
+              payload,
+              {timeout: 10000}
             );
             console.log("✅ [ScoreSubmit] Match updated with tie breaker winner");
-            return; // exit early after updating the match with winner
+            console.log("✅ Backend response received:", response.status);
+            console.log("🔍 About to set winner display...");
+
+            const winnerName = participantLookup[winnerId]?.participantName;
+            console.log("🔍 Debug info:");
+            console.log("winnerId:", winnerId);
+            console.log("winnerName:", winnerName);
+            console.log("method:", method);
+
+
+            setCompletedTieBreakerMatch(prev => {
+              const newState = {
+                ...prev,
+                [`${stageName}-${matchIndex}`]: {
+                  winner: winnerName,
+                  method: formatSelectedTieBreakerName(method)
+                }
+              };
+              console.log("🎯 Setting completedTieBreakerMatch:", newState);
+              return newState;
+            });
+            console.log("🔍 State should be updated now...");
+            // Clear the tie-breaker selection UI
+              setTieBreakerState(prev => ({
+              ...prev,
+              [`${stageName}-${matchIndex}`]: { method: '', winner: '' }
+            }));
+
+            setPromptTieBreakerMethod(prev => ({
+              ...prev,
+              [`${stageName}-${matchIndex}`]: false
+            }));
+
+            setTieBreakerWarning(""); // Clear any warnings
+
             
           // if user selects extra time or golden goal
           }else if(['extraTime', 'goldenGoal'].includes(method)){
@@ -209,33 +258,44 @@ const FinalsStage = ({tournamentData, setTournamentData}) => {
             console.log("✅ [ScoreSubmit] Match updated successfully");
         }
         
+        // UPDATE UI WITH NEW SCORES - 
+        // display changes immediately without waiting for server to refresh
+        const updatedMatchData = {...matchData};// Create shallow copy of entire match data object
+        updatedMatchData[stageName] = [...matchData[stageName]];// Create shallow copy of the specific stage array (prevents mutation)
 
-        const updatedMatchData = {...matchData};
-        updatedMatchData[stageName] = [...matchData[stageName]];
-        
+        // Get reference to the match we just updated
         const originalMatch = updatedMatchData[stageName][matchIndex];
         const updatedMatch = {
-          ...originalMatch,
+          ...originalMatch, // Keep all existing match properties (id, date, etc.)
           participants: [
-            { ...originalMatch.participants[0], score: p1Score},
+            { ...originalMatch.participants[0], score: p1Score}, //update with new scores
             { ...originalMatch.participants[1], score: p2Score }
           ],
           status: 'completed'
         }
-        // refetch the updated match in the matchData
+        // Replace old match with updated match data
         updatedMatchData[stageName][matchIndex] = updatedMatch;
 
         //Clear the warning message if scores are not a draw
         if(p1Score !== p2Score) {
           setTieBreakerWarning(""); 
         }
+        // update react state (UI will immediately show new scores and "completed" status)
         setMatchData(updatedMatchData);
 
     } catch (error) {
-      console.error("Error submitting score:", error);
-      
-    }
+  console.error("🚨 Full error object:", error);
+  console.error("🚨 Error message:", error.message);
+  if (error.response) {
+    console.error("🚨 Backend responded with error:", error.response.status);
+    console.error("🚨 Backend error data:", error.response.data);
+  } else if (error.request) {
+    console.error("🚨 No response received:", error.request);
+  } else {
+    console.error("🚨 Error setting up request:", error.message);
   }
+}
+}
 
   //get all knockout matches
   useEffect(() => {
@@ -337,80 +397,83 @@ const FinalsStage = ({tournamentData, setTournamentData}) => {
                           />
                           </div>
 
-                          {/* Select Tie breaker method warning */}
-                          {promptTieBreakerMethod[tieBreakerKey] && tieBreakerWarning && (
-                          <>
-                            { tieBreakerWarning && (
-                              <div className="alert alert-warning mt-2">
-                                {tieBreakerWarning}
-                              </div>
-                            )}
-
-                            {/* Tie Breaker Method Selection Drop down menu */}
-                            <div className="mb-2">
-                              <label className="form-label">Select Tiebreaker Method: </label>
-                              <select
-                                className="form-select"
-                                onChange={(e) => handleTieBreakerMethodChange(e, stageName, matchIndex)}
-                                >
-                                <option value="">-- Choose --</option>
-                                <option value="extraTime">Extra Time</option>
-                                <option value="goldenGoal">Golden Goal</option>
-                                <option value="penaltyShootout">Penalty Shootout</option>
-                                <option value="coinToss">Coin Toss</option>
-                                <option value="rockPaperScissors">Rock Paper Scissors</option>
-                              </select>
+                          {/* Debugging */}
+                          {console.log("🔍 JSX Debug:", {
+                            key: `${stageName}-${matchIndex}`,
+                            completedData: completedTieBreakerMatch[`${stageName}-${matchIndex}`],
+                            promptTieBreaker: promptTieBreakerMethod[tieBreakerKey],
+                            fullCompletedState: completedTieBreakerMatch // Add this line
+                          })}
+                          {/* Tie-breaker section - show either completed result or selection UI */}
+                          {completedTieBreakerMatch[`${stageName}-${matchIndex}`] ? (
+                            // ✅ Show completed tie-breaker result
+                            <div className="mt-2 alert alert-success">
+                              <strong>Winner:</strong> {completedTieBreakerMatch[`${stageName}-${matchIndex}`].winner} 
+                              <span> via {completedTieBreakerMatch[`${stageName}-${matchIndex}`].method}</span>
                             </div>
-                          </>
-                          )}
+                          ) : promptTieBreakerMethod[tieBreakerKey] ? (
+                            // 🔄 Show your existing tie-breaker selection UI
+                            <>  
+                              {tieBreakerWarning && (
+                                <div className="alert alert-warning mt-2">
+                                  {tieBreakerWarning}
+                                </div>
+                              )}
 
-                          {/* Display selected Tie Breaker Method */}
+                              <div className="mb-2">
+                                <label className="form-label">Select Tiebreaker Method: </label>
+                                <select
+                                  className="form-select"
+                                  onChange={(e) => handleTieBreakerMethodChange(e, stageName, matchIndex)}
+                                >
+                                  <option value="">-- Choose --</option>
+                                  <option value="extraTime">Extra Time</option>
+                                  <option value="goldenGoal">Golden Goal</option>
+                                  <option value="penaltyShootout">Penalty Shootout</option>
+                                  <option value="coinToss">Coin Toss</option>
+                                  <option value="rockPaperScissors">Rock Paper Scissors</option>
+                                </select>
+                              </div>
+
                               {selectedMethod && (
                                 <div className="mt-2 alert alert-info">
                                   <strong>Tie Breaker: </strong> {formatSelectedTieBreakerName(selectedMethod)}
                                 </div>
                               )}
 
-                          {/* Declare Winner selection*/}
-                          {winnerDeclarationCheck(selectedMethod) && (
-                            <>
-                            {console.log("Rendering radios for match", match.matchNumber)}
-                              {/* ...radio inputs... */}
-                            <div className="mt-2">
-                              <label>Select Winner:</label>
+                              {winnerDeclarationCheck(selectedMethod) && (
+                                <div className="mt-2">
+                                  <label>Select Winner:</label>
+                                  <div className="form-check">
+                                    <input
+                                      type="radio"
+                                      name={`tiebreaker-winner-${tieBreakerKey}`}
+                                      value={p1.participantId._id}
+                                      onChange={(e) => handleDeclaringWinner(e, stageName, matchIndex)}
+                                      checked={tieBreakerState[tieBreakerKey]?.winner === p1.participantId._id}
+                                    />
+                                    <label className='form-check-label'>{participant1.participantName}</label>
+                                  </div>
+                                  <div className="form-check">
+                                    <input
+                                      type="radio"
+                                      name={`tiebreaker-winner-${tieBreakerKey}`}
+                                      value={p2.participantId._id}
+                                      onChange={(e) => handleDeclaringWinner(e, stageName, matchIndex)}
+                                      checked={tieBreakerState[tieBreakerKey]?.winner === p2.participantId._id}
+                                    />
+                                    <label className='form-check-label'>{participant2.participantName}</label>
+                                  </div>
+                                </div>
+                              )}
 
-                              <div className="form-check">
-                                <input
-                                  type="radio"
-                                  name={`tiebreaker-winner-${tieBreakerKey}`}
-                                  value={p1.participantId._id}
-                                  onChange={(e) => handleDeclaringWinner(e, stageName, matchIndex)}
-                                  checked={tieBreakerState[tieBreakerKey]?.winner === p1.participantId._id}
-                                />
-                                <label className='form-check-label'>{ participant1.participantName }</label>
-                              </div>
-
-                                {/* participant2 */}
-                              <div className="form-check">
-                                <input
-                                  type="radio"
-                                  name={`tiebreaker-winner-${tieBreakerKey}`}
-                                  value={p2.participantId._id}
-                                  onChange={(e) => handleDeclaringWinner(e, stageName, matchIndex)}
-                                  checked={tieBreakerState[tieBreakerKey]?.winner === p2.participantId._id}
-                                />
-                                <label className='form-check-label'>{ participant2.participantName }</label>
-                              </div>
-                            </div>
+                              {selectedMethod && winnerDeclarationCheck(selectedMethod) && selectedWinner && (
+                                <div className="mt-2 alert alert-success">
+                                  <strong>Winner Selected: </strong> {participantLookup[selectedWinner]?.participantName}
+                                </div>
+                              )}
                             </>
-                          )}
-
-                         {/* Display Selected Winner */}
-                          {selectedMethod && winnerDeclarationCheck(selectedMethod) && selectedWinner && (
-                            <div className="mt-2 alert alert-success">
-                              <strong>Winner Selected: </strong> {participantLookup[selectedWinner]?.participantName}
-                            </div>
-                          )}
+                          ) : null}
 
                         {/* SUBMIT SCORE */}
                           <button
