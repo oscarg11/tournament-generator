@@ -483,6 +483,31 @@ const knockoutMatchTieBreaking = ({ participant1, participant2, score, knockoutM
     }
 }
 
+//Advance Winner into the next match
+const advanceWinnerIntoNextMatch = (currentMatch, tournament) => {
+    //extract match data from current match
+    const {winner, nextMatchId, nextSlotIndex} = currentMatch;
+    
+    //Check if match is a Final
+    if(!currentMatch.nextMatchId) return null; //no next match, so its a final
+
+    //check if there is a winner yet.
+    if(!winner) return false;
+
+    //find the next match in the tournament
+    const nextMatch = tournament.matches.find(match => 
+        match._id.toString() === nextMatchId.toString()
+    );
+
+    //validate that next match exists
+    if(!nextMatch) return false;
+
+    //update winner to the next matches available slot
+    nextMatch.participants[nextSlotIndex].participantId = winner;
+    return nextMatch;
+
+}
+
 module.exports = {
     createGroups,
     shuffle,
@@ -494,5 +519,6 @@ module.exports = {
     recalculateAllParticipantStats,
     getKnockoutStageName,
     determineKnockoutMatchResult,
-    knockoutMatchTieBreaking
+    knockoutMatchTieBreaking,
+    advanceWinnerIntoNextMatch
 }
