@@ -116,6 +116,7 @@ useEffect(() => {
     console.log(`📊 [ScoreSubmit] Submitting ${stageName} match ${matchIndex + 1}`);
 
     try {
+      let response;
        //safety check
         if (
           !Array.isArray(matchData[stageName]) || 
@@ -166,27 +167,16 @@ useEffect(() => {
               setTieBreakerWarning("Please select the winner of the tie breaker.");
               return;
             }
-                        console.log("🔍 About to make axios call...");
-            console.log("🔍 Tournament ID:", tournamentData._id);
-            console.log("🔍 URL will be:", `http://localhost:8000/api/tournaments/${tournamentData._id}/knockout-matches/${stageName}/${matchIndex}`);
 
             //✅ UPDATE backend with the new match data
-            const response = await axios.put(
+            response = await axios.put(
               `http://localhost:8000/api/tournaments/${tournamentData._id}/knockout-matches/${stageName}/${matchIndex}`,
               payload,
               {timeout: 10000}
             );
-            console.log("✅ [ScoreSubmit] Match updated with tie breaker winner");
-            console.log("✅ Backend response received:", response.status);
-            console.log("🔍 About to set winner display...");
 
             const winnerName = participantLookup[winnerId]?.participantName;
-            console.log("🔍 Debug info:");
-            console.log("winnerId:", winnerId);
-            console.log("winnerName:", winnerName);
-            console.log("method:", method);
-
-
+            
             setCompletedTieBreakerMatch(prev => {
               const newState = {
                 ...prev,
@@ -221,7 +211,7 @@ useEffect(() => {
                 participant2Score: p2Score,
                 knockoutMatchTieBreaker: {method}
               }
-              await axios.put(
+              response = await axios.put(
                 `http://localhost:8000/api/tournaments/${tournamentData._id}/knockout-matches/${stageName}/${matchIndex}`,
                 payload
               );
@@ -251,7 +241,7 @@ useEffect(() => {
               participant2Score: p2Score,
               knockoutMatchTieBreaker: null
             }
-            await axios.put(
+            response = await axios.put(
               `http://localhost:8000/api/tournaments/${tournamentData._id}/knockout-matches/${stageName}/${matchIndex}`,
               payload
             );
@@ -259,29 +249,55 @@ useEffect(() => {
         }
         
         // UPDATE UI WITH NEW SCORES - 
-        // display changes immediately without waiting for server to refresh
-        const updatedMatchData = {...matchData};// Create shallow copy of entire match data object
-        updatedMatchData[stageName] = [...matchData[stageName]];// Create shallow copy of the specific stage array (prevents mutation)
+        setMatchData(prevMatchData => {
+          //copy all stages
+          const updatedMatchData = { ...prevMatchData };
 
-        // Get reference to the match we just updated
-        const originalMatch = updatedMatchData[stageName][matchIndex];
-        const updatedMatch = {
-          ...originalMatch, // Keep all existing match properties (id, date, etc.)
-          participants: [
-            { ...originalMatch.participants[0], score: p1Score}, //update with new scores
-            { ...originalMatch.participants[1], score: p2Score }
-          ],
-          status: 'completed'
-        }
-        // Replace old match with updated match data
-        updatedMatchData[stageName][matchIndex] = updatedMatch;
+          //update current match
+          const stageMatches = [...updatedMatchData[stageName]];
+          const originalMatch = stageMatches[matchIndex];
+
+          const updatedMatch = {
+            ...originalMatch,
+            participants: [
+              { ...originalMatch.participants[0], score: p1Score },
+              { ...originalMatch.participants[1], score: p2Score }
+            ],
+            status: "completed",
+            winner: response?.data?.match?.winner || null
+          };
+
+          stageMatches[matchIndex] = updatedMatch;
+          updatedMatchData[stageName] = stageMatches;
+
+          //update the next match with the winner(s) of the current match
+          if(response?.data?.nextMatch){
+
+            //New updated next match data(to trigger UI update)
+            const nextMatch = response.data.nextMatch;
+            console.log("📍 Updating next match:", nextMatch);
+
+            //find the next stage with the next match
+            Object.keys(updatedMatchData).forEach(stage => {
+              updatedMatchData[stage] = updatedMatchData[stage].map(match => {
+                //Update the next match with new data
+                if(match._id === nextMatch._id){
+                  console.log(`✅ Found and updating match in ${stage}`);
+                  return nextMatch;
+                }
+                return match;
+              });
+            })
+          }
+          console.log("📊 Final updated match data:", updatedMatchData);
+          return updatedMatchData;
+        })
+
 
         //Clear the warning message if scores are not a draw
         if(p1Score !== p2Score) {
           setTieBreakerWarning(""); 
         }
-        // update react state (UI will immediately show new scores and "completed" status)
-        setMatchData(updatedMatchData);
 
     } catch (error) {
   console.error("🚨 Full error object:", error);
@@ -296,6 +312,13 @@ useEffect(() => {
   }
 }
 }
+
+//Debugging: Log when finals match data changes
+useEffect(() => {
+  if (matchData?.Final) {
+    console.log("🏆 Finals match updated:", matchData.Final);
+  }
+}, [matchData]);
 
   //get all knockout matches
   useEffect(() => {
@@ -324,16 +347,11 @@ useEffect(() => {
         <h2>Finalists</h2>
           {Array.isArray(tournamentData.finalists) && tournamentData.finalists.length > 0 ? (
             <ul>
-              {tournamentData.finalists.map((f, i) => {
-                // use the participantLookup to get the participant name and team name
-                const p = participantLookup[f.participant]
-
-                return (
+              {tournamentData.finalists.map((f, i) => (
                 <li key={i}>
-                  {p?.participantName || "??"} ({p?.teamName || "??"}) — Group {f.group}, Rank {f.rank}
+                  {f.participantName} ({f.teamName}) — Group {f.group}, Rank {f.rank}
                 </li>
-              )
-          })}
+              ))}
             </ul>
           ) : (
             <p>No finalists yet.</p>
@@ -351,8 +369,9 @@ useEffect(() => {
                   <div className='d-flex flex-column gap-3'>
                     {matches.map((match, matchIndex) => {
                       const [p1, p2] = match.participants;
-                      const participant1 = participantLookup[p1.participantId?._id] || null;
-                      const participant2 = participantLookup[p2.participantId?._id] || null;
+
+                      const participant1 = p1.participantId;
+                      const participant2 = p2.participantId;
 
                       const tieBreakerKey = `${stageName}-${matchIndex}`;
                       const selectedMethod = tieBreakerState[tieBreakerKey]?.method;
