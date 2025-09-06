@@ -1,7 +1,8 @@
 //Backend helper functions
 const { determineKnockoutMatchResult,
         recalculateAllParticipantStats,
-        getSortedGroupStandings
+        getSortedGroupStandings,
+        advanceWinnerIntoNextMatch
         } = require("../helpers/tournamentFunctions");
 
 const Match = require("../models/match.model");
@@ -341,7 +342,7 @@ module.exports.updateKnockoutStageMatch = async(req, res) => {
     if(participant1Score === undefined || participant2Score === undefined){
         return res. status(400).json({ message: "Both Participant scores are required"})
     }
-    
+
     try {
         //Extract parameters from request
         const { tournamentId, stageName, matchIndex } = req.params;
@@ -374,33 +375,53 @@ module.exports.updateKnockoutStageMatch = async(req, res) => {
             return res.status(400).json({ message: "Invalid match data!"});
         }
 
-        //define participants
-        const [p1, p2] = match.participants;
-        const participant1 = tournament.participants.find(p => p._id.toString() === p1.participantId.toString());
-        const participant2 = tournament.participants.find(p => p._id.toString() === p2.participantId.toString()); 
-
-        //Update Scores
+        //Update Scores + tiebreaker if provided
         match.participants[0].score = participant1Score;
         match.participants[1].score = participant2Score;
         match.knockoutMatchTieBreaker = knockoutMatchTieBreaker;
 
-        console.log(`⚔️ Updating Knockout Match ${match.matchNumber || "N/A"}: ${participant1?.participantName || "TBD"} vs ${participant2?.participantName || "TBD"}`);
+        //define participants
+        const [p1, p2] = match.participants;
+        const participant1 = tournament.participants.find(p => p._id.toString() === p1.participantId.toString());
+        const participant2 = tournament.participants.find(p => p._id.toString() === p2.participantId.toString());
 
+        console.log(`⚔️ Updating Knockout Match ${match.matchNumber || "N/A"}: ${participant1?.participantName || "TBD"} vs ${participant2?.participantName || "TBD"}`);
+        
         //call determine knockout match result function
         console.log("🔍 calling Determining knockout match function for the result...");
-        determineKnockoutMatchResult(participant1, participant2, {
-            participant1: participant1Score,
-            participant2: participant2Score
-        }, match, knockoutMatchTieBreaker);
-        
+        determineKnockoutMatchResult(
+            participant1,
+            participant2,
+            {participant1: participant1Score, participant2: participant2Score},
+            match,
+            knockoutMatchTieBreaker
+        );
+
+        match.status = 'completed'; // Mark match as completed
         await match.save();
-        console.log("✅ Knockout Match updated and saved successfully!", match);
 
-        return res.status(200).json({ 
-            message: "Match updated successfully",
-            match: match 
+        //repopulate current match with participant names for frontend
+        const populatedMatch = await match.populate("participants.participantId");
+
+        //Advance Match winner into the next round
+        let populatedNextMatch = null; 
+        const updatedNextMatch = advanceWinnerIntoNextMatch(match, tournament);
+
+        if(updatedNextMatch){
+            await updatedNextMatch.save();
+            //populate the next match with participant names for frontend
+            populatedNextMatch = await updatedNextMatch.populate("participants.participantId");
+            console.log("✅ Winner advanced to the next match successfully!", populatedNextMatch);
+        }else{
+            console.log("Tournament Completed.");
+        }
+
+        //success response
+        return res.status(200).json({
+            message: "Match Updated Successfully",
+            match: populatedMatch,
+            nextMatch: populatedNextMatch
         });
-
 
     } catch (error) {
         console.error(`❌ [updateKnockoutStageMatch] Error: ${error.message}`);
