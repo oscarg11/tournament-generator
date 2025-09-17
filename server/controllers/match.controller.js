@@ -2,7 +2,7 @@
 const { determineKnockoutMatchResult,
         recalculateAllParticipantStats,
         getSortedGroupStandings,
-        advanceWinnerIntoNextMatch
+        advanceParticipantsToNextMatch
         } = require("../helpers/tournamentFunctions");
 
 const Match = require("../models/match.model");
@@ -397,30 +397,26 @@ module.exports.updateKnockoutStageMatch = async(req, res) => {
             knockoutMatchTieBreaker
         );
 
+        // Save current match and populate participants for response
         match.status = 'completed'; // Mark match as completed
         await match.save();
+        const currentMatch = await match.populate("participants.participantId");
 
-        //repopulate current match with participant names for frontend
-        const populatedMatch = await match.populate("participants.participantId");
+        // Advance winners to next and losers to third place match if its a semifinal
+        const updatedNextMatches = advanceParticipantsToNextMatch(match, tournament);
 
-        //Advance Match winner into the next round
-        let populatedNextMatch = null; 
-        const updatedNextMatch = advanceWinnerIntoNextMatch(match, tournament);
-
-        if(updatedNextMatch){
-            await updatedNextMatch.save();
-            //populate the next match with participant names for frontend
-            populatedNextMatch = await updatedNextMatch.populate("participants.participantId");
-            console.log("✅ Winner advanced to the next match successfully!", populatedNextMatch);
-        }else{
-            console.log("Tournament Completed.");
+        //populate the updated next matches with participant info for response
+        let populatedUpdates = [];
+        for (const m of updatedNextMatches){
+            await m.save();
+            const populated = await m.populate("participants.participantId");
+            populatedUpdates.push(populated);
         }
-
         //success response
         return res.status(200).json({
             message: "Match Updated Successfully",
-            match: populatedMatch,
-            nextMatch: populatedNextMatch
+            match: currentMatch, //the current updated match
+            nextMatches: populatedUpdates //the updated next matches
         });
 
     } catch (error) {
