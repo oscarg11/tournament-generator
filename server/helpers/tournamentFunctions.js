@@ -351,6 +351,8 @@ const getKnockoutStageName = (roundIndex, totalRounds) => {
         'Final'
     ];
     const offSet = stageNames.length - totalRounds;
+    console.log("Check getKnockOutStageNames: ","roundIndex:", roundIndex, "=> stage:", stageNames[roundIndex + offSet]);
+
     return stageNames[roundIndex + offSet]
 }
 
@@ -376,6 +378,7 @@ const determineKnockoutMatchResult = (participant1, participant2, score, match, 
         participant2.goalsScored += score.participant2;
         participant2.goalsAgainst += score.participant1;
         participant2.matchHistory.push("L")
+        match.loser = participant2._id;
 
     }
     //if participant 2 wins
@@ -393,6 +396,7 @@ const determineKnockoutMatchResult = (participant1, participant2, score, match, 
         participant1.goalsScored += score.participant1;
         participant1.goalsAgainst += score.participant2;
         participant1.matchHistory.push("L")
+        match.loser = participant1._id;
 
     // if its a draw, call knockout match tie breaker
     }else{
@@ -428,6 +432,7 @@ const determineKnockoutMatchResult = (participant1, participant2, score, match, 
 
             participant2.losses += 1;
             participant2.matchHistory.push("L");
+            match.loser = participant2._id;
         }else{
             //If participant 2 wins
             participant2.wins += 1;
@@ -435,6 +440,7 @@ const determineKnockoutMatchResult = (participant1, participant2, score, match, 
 
             participant1.losses += 1;
             participant1.matchHistory.push("L");
+            match.loser = participant1._id;
         }
         match.winner = tieBreakerWinner._id; // Set the winner of the match
     }
@@ -483,29 +489,52 @@ const knockoutMatchTieBreaking = ({ participant1, participant2, score, knockoutM
     }
 }
 
-//Advance Winner into the next match
-const advanceWinnerIntoNextMatch = (currentMatch, tournament) => {
+//Advance Participants into the next match
+const advanceParticipantsToNextMatch = (currentMatch, tournament) => {
     //extract match data from current match
-    const {winner, nextMatchId, nextSlotIndex} = currentMatch;
-    
-    //Check if match is a Final
-    if(!currentMatch.nextMatchId) return null; //no next match, so its a final
+    const {winner, loser, nextMatchId, nextSlotIndex, thirdPlaceMatchId, thirdPlaceSlotIndex} = currentMatch;
+
+    const updates = [];
 
     //check if there is a winner yet.
     if(!winner) return false;
 
-    //find the next match in the tournament
-    const nextMatch = tournament.matches.find(match => 
-        match._id.toString() === nextMatchId.toString()
-    );
+    if(!loser)return false;
 
-    //validate that next match exists
-    if(!nextMatch) return false;
+    //check if the the match is a semi final
+    if(thirdPlaceMatchId && currentMatch.stage === 'semiFinals'){
+        //find the next match in the tournament
+        const nextMatch = tournament.matches.find(match => 
+            match._id.toString() === nextMatchId.toString()
+        );
+        //validate that next match exists
+        if(!nextMatch) return false;
+        //update winner to the next matches available slot
+        nextMatch.participants[nextSlotIndex].participantId = winner;
+        updates.push(nextMatch);
 
-    //update winner to the next matches available slot
-    nextMatch.participants[nextSlotIndex].participantId = winner;
-    return nextMatch;
+        //find the third place match
+        const thirdPlaceMatch = tournament.matches.find(match =>
+            match._id.toString() === thirdPlaceMatchId.toString()
+        );
+        if(!thirdPlaceMatch) return false;
+        thirdPlaceMatch.participants[thirdPlaceSlotIndex].participantId = loser;
+        updates.push(thirdPlaceMatch);
 
+        return updates;
+
+    }else if(!currentMatch.nextMatchId){//if current match is a final: nothing
+        return [];
+
+    }else{//all other knockout matches
+        const nextMatch = tournament.matches.find(match => 
+            match._id.toString() === nextMatchId.toString()
+        );
+        if(!nextMatch) return false;
+        nextMatch.participants[nextSlotIndex].participantId = winner;
+        updates.push(nextMatch);
+    }
+    return updates;
 }
 
 module.exports = {
@@ -520,5 +549,5 @@ module.exports = {
     getKnockoutStageName,
     determineKnockoutMatchResult,
     knockoutMatchTieBreaking,
-    advanceWinnerIntoNextMatch
+    advanceParticipantsToNextMatch
 }
