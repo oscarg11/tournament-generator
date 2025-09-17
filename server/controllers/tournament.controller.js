@@ -446,7 +446,8 @@ module.exports.createKnockoutMatches = async (req, res) => {
                 }
 
                 //GENERATE EMPTY MATCHES FOR NEXT ROUNDS BASED ON THE NUMBER OF MATCHES IN THE FIRST ROUND
-                for(let i = 0; i < knockOutRounds.length -1; i++){
+                // Loop stops at length - 1 to prevent final round matches from getting nextMatchId
+                for(let i = 0; i < knockOutRounds.length - 1; i++){
                     const currentRound = knockOutRounds[i];
                     const nextRound = knockOutRounds[i + 1];
 
@@ -454,7 +455,7 @@ module.exports.createKnockoutMatches = async (req, res) => {
                     for(let j = 0; j < currentRound.length; j+=2){
                         let match1 = currentRound[j];
                         let match2 = currentRound[j + 1];
-
+                       
                         // Id for next round match
                         const nextMatchId = new mongoose.Types.ObjectId();
 
@@ -472,12 +473,39 @@ module.exports.createKnockoutMatches = async (req, res) => {
                         nextRound.push(nextMatch);
 
                         //link the current matches to the next match
+                        //(Finals will not have these fields)
                         match1.nextMatchId = nextMatchId;
                         match1.nextSlotIndex = 0;
 
                         match2.nextMatchId = nextMatchId;
                         match2.nextSlotIndex = 1;
-                        console.log(`🔗 Match ${match1.matchNumber} & ${match2.matchNumber} winners advance to ${nextStageName} (Match ${nextMatch.matchNumber})`);
+                        console.log(`🔗 Match ${match1.matchNumber} & ${match2.matchNumber} winners advance to ${nextMatch.stageName} (Match ${nextMatch.matchNumber})`);
+
+                        //if the current round is the semi finals then create a 3rd place match
+                        if(i === knockOutRounds.length - 2){
+                            const thirdPlaceMatchId = new mongoose.Types.ObjectId();
+
+                            const thirdPlaceMatch = {
+                                _id: thirdPlaceMatchId,
+                                participants: [
+                                    { participantId: null, score: 0 },
+                                    { participantId: null, score: 0 }
+                                ],
+                                matchNumber: matchNumber++,
+                                stage:'thirdPlaceMatch',
+                                status: 'pending',
+                            };
+                            nextRound.push(thirdPlaceMatch);
+
+                            //link the current matches to the third place match
+                            match1.thirdPlaceMatchId = thirdPlaceMatchId;
+                            match1.thirdPlaceSlotIndex = 0;
+
+                            match2.thirdPlaceMatchId = thirdPlaceMatchId;
+                            match2.thirdPlaceSlotIndex = 1;
+                            console.log(`🔗 Match ${match1.matchNumber} & ${match2.matchNumber} losers advance to third place match (Match ${thirdPlaceMatch.matchNumber})`);
+                        }
+
                     }
                 }
                 //INSERT ALL KNOCKOUT MATCHES INTO THE DB
