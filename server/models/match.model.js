@@ -17,17 +17,31 @@ const MatchSchema = new mongoose.Schema({
     },
     stage: {
         type: String,
-        enum: ['group', 'roundOfSixteen', 'quarterFinals', 'semiFinals', 'Final']
+        enum: ['group', 'roundOfSixteen', 'quarterFinals', 'semiFinals','thirdPlaceMatch', 'Final']
     },
     startTime: { type: Date, default: Date.now },
     endTime: { type: Date, default: Date.now },
     status: { type: String, enum: ['pending', 'completed'], default: 'pending' },
     nextMatchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Match' },
     nextSlotIndex: { type: Number,enum: [0,1]},
+    thirdPlaceMatchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Match' },
+    thirdPlaceSlotIndex: { type: Number, enum: [0,1]},
     winner: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Participant',
         default: null // Initially no winner
+    },
+    loser: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Participant',
+        default: null // Initially no loser
+    },
+    knockoutMatchTieBreaker: {
+        method: {
+            type: String,
+            enum: ['extraTime', 'goldenGoal', 'penaltyShootout','coinToss', 'rockPaperScissors'],
+            default: null // Initially no tie-breaker method
+        }
     }
 
 }, {timestamps: true});
