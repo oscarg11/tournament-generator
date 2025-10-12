@@ -387,23 +387,30 @@ module.exports.updateKnockoutStageMatch = async(req, res) => {
 
         console.log(`⚔️ Updating Knockout Match ${match.matchNumber || "N/A"}: ${participant1?.participantName || "TBD"} vs ${participant2?.participantName || "TBD"}`);
         
-        //call determine knockout match result function
-        console.log("🔍 calling Determining knockout match function for the result...");
+        match.status = 'completed'; // Mark match as completed
+
+        // call function to determine winner/loser and update stats
         determineKnockoutMatchResult(
             participant1,
             participant2,
-            {participant1: participant1Score, participant2: participant2Score},
+            { participant1: participant1Score, participant2: participant2Score },
             match,
-            knockoutMatchTieBreaker
-        );
-
-        // Save current match and populate participants for response
-        match.status = 'completed'; // Mark match as completed
+            knockoutMatchTieBreaker || {},
+            true //shouldSetWinnerAndLoser = true because this is a new match completion
+        )
+        console.log("📝 Saving match with tiebreaker:", match.knockoutMatchTieBreaker);
+        console.log("🏁 Final match object before save:", match);
         await match.save();
-        const currentMatch = await match.populate("participants.participantId");
+        
+        // Recalculate all participants stats from scratch to ensure accuracy
+        await recalculateAllParticipantStats(tournament)
 
+        const currentMatch = await match.populate("participants.participantId");
+        
         // Advance winners to next and losers to third place match if its a semifinal
         const updatedNextMatches = advanceParticipantsToNextMatch(match, tournament);
+        console.log("updated next matches:", updatedNextMatches);
+        await match.save();
 
         //populate the updated next matches with participant info for response
         let populatedUpdates = [];
@@ -412,7 +419,6 @@ module.exports.updateKnockoutStageMatch = async(req, res) => {
             const populated = await m.populate("participants.participantId");
             populatedUpdates.push(populated);
         }
-        //success response
         return res.status(200).json({
             message: "Match Updated Successfully",
             match: currentMatch, //the current updated match
@@ -422,6 +428,124 @@ module.exports.updateKnockoutStageMatch = async(req, res) => {
     } catch (error) {
         console.error(`❌ [updateKnockoutStageMatch] Error: ${error.message}`);
         res.status(500).json({ message: "Failed to update match", error });
-        
+    }
+}
+
+//RESET KNOCKOUT STAGE MATCH
+module.exports.resetKnockoutStageMatch = async (req, res) => {
+    try {
+        const { tournamentId, stageName, matchIndex } = req.params;
+        console.log(`📌 [resetKnockoutStageMatch] called — Tournament ID: ${tournamentId}, Stage: ${stageName}, Match: ${matchIndex}`);
+
+        // Find tournament
+        const tournament = await Tournament.findById(tournamentId)
+            .populate('matches')
+            .populate('participants');
+
+            if(!tournament){
+                return res.status(404).json({ message: "Tournament not found!" });
+            }
+
+            // Find matches in this stage
+            const matchesInStage = tournament.matches.filter(m => m.stage === stageName);
+            const currentMatch = matchesInStage[matchIndex];
+            
+            if(!currentMatch){
+                return res.status(404).json({ message: "Match not found!" });
+            }
+
+            //extract current match info
+            const { nextMatchId, nextSlotIndex, thirdPlaceMatchId, thirdPlaceSlotIndex } = currentMatch;
+
+            //FIND THE NEXT MATCH
+            let nextMatch = tournament.matches.find(matches =>
+                matches._id.toString() === nextMatchId.toString()
+            );
+             //validate that next match exists
+            if(!nextMatch) return false;
+
+            //FIND THE THIRD PLACE MATCH IF APPLICABLE
+            let thirdPlaceMatch = tournament.matches.find(matches =>
+                matches._id.toString() === currentMatch.thirdPlaceMatchId.toString()
+            );
+            //validate that next match exists
+            if(!thirdPlaceMatch) return false;
+
+
+            // Check if match is a semi final then reset starting from its descendants
+            if(thirdPlaceMatchId && currentMatch.stage === 'semiFinals'){
+                //reset the current matches descendants first
+                nextMatch.participants[nextSlotIndex] = { participantId: null };
+                await nextMatch.save();// save reset
+                console.log("Next match reset:", nextMatch);
+
+                //reset third place match participants
+                thirdPlaceMatch.participants[thirdPlaceSlotIndex] = { participantId: null };
+                await thirdPlaceMatch.save();// save reset
+                console.log("Third place match reset:", thirdPlaceMatch);
+
+                //reset the parent match (current match)
+                currentMatch.participants[0].score = 0;
+                currentMatch.participants[1].score = 0;
+                currentMatch.knockoutMatchTieBreaker = null;
+                currentMatch.winner = null;
+                currentMatch.loser = null;
+                currentMatch.status = 'pending';
+
+            //if match is a final or thirdplace match, just reset itself
+            }else if(!currentMatch.nextMatchId && !currentMatch.thirdPlaceMatchId){
+                currentMatch.participants[0].score = 0;
+                currentMatch.participants[1].score = 0;
+                currentMatch.knockoutMatchTieBreaker = null;
+                currentMatch.winner = null;
+                currentMatch.loser = null;
+                currentMatch.status = 'pending';
+
+                
+            // for all other knockout stages just reset the current match and its next match
+            }else{
+                //reset the current matches descendants first
+                const nextMatch = tournament.matches.find(matches =>
+                    matches._id.toString() === nextMatchId.toString()
+                );
+                if(!nextMatch) return false;
+                nextMatch.participants[nextSlotIndex] = { participantId: null };
+                await nextMatch.save();// save reset
+
+                currentMatch.participants[0].score = 0;
+                currentMatch.participants[1].score = 0;
+                currentMatch.knockoutMatchTieBreaker = null;
+                currentMatch.winner = null;
+                currentMatch.loser = null;
+                currentMatch.status = 'pending';
+
+            }
+            //recalculate all participants stats
+            await recalculateAllParticipantStats(tournament)
+
+            const updatedMatches = [currentMatch];
+            if (nextMatch) updatedMatches.push(nextMatch);
+            if (thirdPlaceMatch) updatedMatches.push(thirdPlaceMatch);
+
+            //repopulate all matches with updated info
+            await Promise.all(
+            updatedMatches.map(m => m.populate("participants.participantId"))
+            );
+            //save all
+            await Promise.all(
+                updatedMatches.map(m => m.save())
+            );
+
+            console.log("✅ [resetGroupStageMatch] Knockout Match Reset Successfully")
+
+            // Return populated matches
+            return res.status(200).json({
+            message: "Match reset successful",
+            updatedMatches
+            });
+
+    } catch (error) {
+        console.error(`❌ [resetKnockoutMatch] Error: ${error.message}`);
+        res.status(500).json({ message: "Failed to reset match", error });
     }
 }
