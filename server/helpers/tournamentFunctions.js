@@ -319,22 +319,42 @@ const recalculateAllParticipantStats = async (tournament) => {
         const participant2 = tournament.participants.find(
             p => p._id.toString() === p2.participantId.toString()
         );
+        //check what stage the match is in
+        if(match.stage ==='group'){
+            //Re-apply this match's results using the stat logic
+            if(participant1 && participant2){
+                determineGroupMatchResult(participant1, participant2, {
+                    participant1: p1.score,
+                    participant2: p2.score
+                }, match);
+            }
+            //add each participant to the updatedParticipants map using their _id
+            //to ensure each participant is only saved once
+            updatedParticipants.set(participant1._id.toString(), participant1);
+            updatedParticipants.set(participant2._id.toString(), participant2);
+        }else{
+            //knockout match
+            if(participant1 && participant2){
+                console.log("➕ ➖calling determineKnockoutMatchResult from RECALCULATEALLPARTICIPANTSTATS:");
+                determineKnockoutMatchResult(participant1, participant2, {
+                    participant1: p1.score,
+                    participant2: p2.score
+                }, match,
+                match.knockoutMatchTieBreaker || {},
+                false //shouldSetWinnerAndLoser = false because they are already set
+                );
+                console.log("Updated knockout match (from RECALCULATE):", match);
+                console.log("♻️ Recalculating match:", match._id);
+                console.log("↪️ Tiebreaker object:", match.knockoutMatchTieBreaker);
 
-        //Re-apply this match's results using the stat logic
-        if(participant1 && participant2){
-            determineGroupMatchResult(participant1, participant2, {
-                participant1: p1.score,
-                participant2: p2.score
-            }, match);
+            }
+            updatedParticipants.set(participant1._id.toString(), participant1);
+            updatedParticipants.set(participant2._id.toString(), participant2);
         }
-        //add each participant to the updatedParticipants map using their _id
-        //to ensure each participant is only saved once
-        updatedParticipants.set(participant1._id.toString(), participant1);
-        updatedParticipants.set(participant2._id.toString(), participant2);
 
     }
     //save each updated participant to the db
-    //using map.values() ensures each participant is only saved once in case they aopeared in multiple matches
+    //using map.values() ensures each participant is only saved once in case they appeared in multiple matches
     for(const participant of updatedParticipants.values()){
         await participant.save();
     }
@@ -351,13 +371,19 @@ const getKnockoutStageName = (roundIndex, totalRounds) => {
         'Final'
     ];
     const offSet = stageNames.length - totalRounds;
-    console.log("Check getKnockOutStageNames: ","roundIndex:", roundIndex, "=> stage:", stageNames[roundIndex + offSet]);
+    console.log("Check getKnockOutStageNames: ","roundIndex:", roundIndex, "stage:", stageNames[roundIndex + offSet]);
 
     return stageNames[roundIndex + offSet]
 }
 
 //Determine Kockout stage match result
-const determineKnockoutMatchResult = (participant1, participant2, score, match, knockoutMatchTieBreaker = {}
+const determineKnockoutMatchResult = (
+    participant1,
+    participant2, 
+    score,
+    match,
+    knockoutMatchTieBreaker = {},
+    shouldSetWinnerAndLoser = true
     ) => {
 
     console.log("🔵 ENTERING DETERMINEKNOCKOUTMATCHRESULT:");
@@ -371,15 +397,20 @@ const determineKnockoutMatchResult = (participant1, participant2, score, match, 
         participant1.goalsScored += score.participant1;
         participant1.goalsAgainst += score.participant2;
         participant1.matchHistory.push("W");
-        match.winner = participant1._id;
-
+        
         participant2.matchesPlayed += 1;
         participant2.losses += 1;
         participant2.goalsScored += score.participant2;
         participant2.goalsAgainst += score.participant1;
         participant2.matchHistory.push("L")
-        match.loser = participant2._id;
 
+        //This ensures that winner and loser are only set when the match is first completed
+        //and not during recalculation of stats upon a reset
+        if(shouldSetWinnerAndLoser){
+            match.winner = participant1._id;
+            match.loser = participant2._id;
+        }
+        console.log("DETERMINEKNOCKOUTMATCHRESULT winner: ", match.winner);
     }
     //if participant 2 wins
     else if(score.participant2 > score.participant1){
@@ -389,14 +420,17 @@ const determineKnockoutMatchResult = (participant1, participant2, score, match, 
         participant2.goalsScored += score.participant2;
         participant2.goalsAgainst += score.participant1;
         participant2.matchHistory.push("W");
-        match.winner = participant2._id;
 
         participant1.matchesPlayed += 1;
         participant1.losses += 1;
         participant1.goalsScored += score.participant1;
         participant1.goalsAgainst += score.participant2;
-        participant1.matchHistory.push("L")
-        match.loser = participant1._id;
+        participant1.matchHistory.push("L");
+
+        if(shouldSetWinnerAndLoser){
+            match.winner = participant2._id;
+            match.loser = participant1._id;
+        }
 
     // if its a draw, call knockout match tie breaker
     }else{
@@ -422,9 +456,22 @@ const determineKnockoutMatchResult = (participant1, participant2, score, match, 
         });
 
         // If no winner is declared, throw an error
-        if (!tieBreakerWinner) {
+        if (!tieBreakerWinner){
+            if(!shouldSetWinnerAndLoser){
+                console.warn("Skipping winner/loser assignment during recalculation for draw match.");
+                return{ participant1, participant2, match };
+            }
         throw new Error("Match is a draw and no tiebreaker winner was declared.");
     }
+        // Save the tiebreaker winner to the match's knockoutMatchTieBreaker field.
+        // This ensures that if the match is recalculated later (e.g. after a reset),
+        // the manual winner can still be recognized and reapplied accurately.
+        if(tieBreakerWinner && knockoutMatchTieBreaker?.method){
+            match.knockoutMatchTieBreaker = {
+                ...knockoutMatchTieBreaker,
+                winner: tieBreakerWinner._id
+            };
+        }
         //If participant 1 wins
         if(tieBreakerWinner._id.toString() === participant1._id.toString()){
             participant1.wins += 1;
@@ -432,7 +479,11 @@ const determineKnockoutMatchResult = (participant1, participant2, score, match, 
 
             participant2.losses += 1;
             participant2.matchHistory.push("L");
+
+            if(shouldSetWinnerAndLoser){
+            match.winner = participant1._id;
             match.loser = participant2._id;
+        }
         }else{
             //If participant 2 wins
             participant2.wins += 1;
@@ -440,21 +491,22 @@ const determineKnockoutMatchResult = (participant1, participant2, score, match, 
 
             participant1.losses += 1;
             participant1.matchHistory.push("L");
+
+            if(shouldSetWinnerAndLoser){
+            match.winner = participant2._id;
             match.loser = participant1._id;
         }
-        match.winner = tieBreakerWinner._id; // Set the winner of the match
+        }
     }
     return{ participant1, participant2, match}
 }
 
 // Tie-breaking logic for knockout matches
 const knockoutMatchTieBreaking = ({ participant1, participant2, score, knockoutMatchTieBreaker }) => {
-    console.log("🔍 knockoutMatchTieBreaking called");
     const method = knockoutMatchTieBreaker?.method;
     const winnerId = knockoutMatchTieBreaker?.winner;
 
-    console.log(`🎯 Tiebreaker selected: ${method}`);
-
+    console.log("🔍 knockoutMatchTieBreaking called", method, winnerId);
     //check if there is a method selected first
     if(!method) return null;
 
@@ -476,6 +528,8 @@ const knockoutMatchTieBreaking = ({ participant1, participant2, score, knockoutM
     //For manually declared winners( penalty shootout, coin toss, rock-paper-scissors)
     if(['penaltyShootout', 'coinToss', 'rockPaperScissors'].includes(method)){
         //participant 1
+        console.log("👀 Winner ID received:", winnerId);
+
         if( winnerId == participant1._id.toString()){
             console.log(`🏆 ${participant1.participantName} wins via ${method}`);
             return participant1;
@@ -487,6 +541,7 @@ const knockoutMatchTieBreaking = ({ participant1, participant2, score, knockoutM
         }
         return null;
     }
+    return winnerId;
 }
 
 //Advance Participants into the next match
@@ -536,6 +591,7 @@ const advanceParticipantsToNextMatch = (currentMatch, tournament) => {
     }
     return updates;
 }
+
 
 module.exports = {
     createGroups,
