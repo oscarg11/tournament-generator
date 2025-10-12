@@ -1,0 +1,15 @@
+{
+  "tournamentId": "68e72d406a9b019df0f25067",
+  "mode": "group-stage-complete",
+  "groupMatches": 12,
+  "finalists": 4,
+  "timestamp": "2025-10-09T03:34:24.740Z",
+  "endpoints": {
+    "viewTournament": "/api/dashboard/68e72d406a9b019df0f25067",
+    "getGroupMatches": "/api/tournaments/68e72d406a9b019df0f25067/group-stage-matches",
+    "getKnockoutMatches": "/api/tournaments/68e72d406a9b019df0f25067/knockout-stage-matches",
+    "concludeGroupStage": "/api/tournaments/68e72d406a9b019df0f25067/conclude-group-stage",
+    "createKnockoutStage": "/api/tournaments/68e72d406a9b019df0f25067/create-knockout-stage",
+    "updateKnockoutMatch": "/api/tournaments/68e72d406a9b019df0f25067/knockout-matches/[stage]/[index]"
+  }
+}

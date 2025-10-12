@@ -1,3 +1,4 @@
+console.log(`=== Server starting - PID: ${process.pid} ===`);
 const express = require("express");
 const app = express();
 const port = 8000;
