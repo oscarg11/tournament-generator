@@ -8,12 +8,23 @@ const FinalsStage = ({tournamentData, setTournamentData}) => {
   const [tieBreakerState, setTieBreakerState] = useState({});
   // state to display prompt for tie breaker method selection
   const [promptTieBreakerMethod, setPromptTieBreakerMethod] = useState({});
-
   //tie breaker warning message
   const [tieBreakerWarning, setTieBreakerWarning] = useState("");
-
-  //completed matches via tie breakers
-  const [completedTieBreakerMatch, setCompletedTieBreakerMatch] = useState({});
+  //loading indicators
+  const [loadingMatches, setLoadingMatches] = useState(false);
+  //track submitted matches
+  const [submittedMatches, setSubmittedMatches] = useState(new Set());
+  //Format stage names for display
+  const formatStageName = (stage) => {
+    const stageNames = {
+      roundOfSixteen: 'Round of 16',
+      quarterFinals: 'Quarter-Finals',
+      semiFinals: 'Semi-Finals',
+      thirdPlaceMatch: 'Third Place Match',
+      Final: 'Final'
+    };
+    return stageNames[stage] || stage;
+  }
 
   //Format Display of Selected Tie Breaker
   const formatSelectedTieBreakerName = (method) => {
@@ -43,11 +54,6 @@ const FinalsStage = ({tournamentData, setTournamentData}) => {
   };
 }, []);
 
-// Add this useEffect near your other useEffect declarations at the top
-useEffect(() => {
-  console.log("👀 completedTieBreakerMatch updated:", completedTieBreakerMatch);
-}, [completedTieBreakerMatch]);
-
 
   //PARTICIPANT LOOKUP FUNCTION TO GET PARTICIPANT NAME AND TEAM NAME
     const participantLookup = useMemo(() => {
@@ -58,12 +64,10 @@ useEffect(() => {
   const handleTieBreakerMethodChange = (e, stageName, matchIndex) => {
     const key = `${stageName}-${matchIndex}`; // unique key for each match
     const method = e.target.value; // get the selected method
-
     // log to display selected method
     if (method) {
       console.log(`⚖️ [TieBreaking] User selected method: ${method} for ${stageName} match ${matchIndex + 1}`);
     }
-    
     setTieBreakerState(prev => ({
       ...prev, //copy previous state
       [key]: {  // for this specific match
@@ -71,7 +75,6 @@ useEffect(() => {
         method: method //update just the method
       }
     }));
-
     // clear messsage warning when a tie breaker method is selected
     if(method) {
       setTieBreakerWarning("");
@@ -87,9 +90,7 @@ useEffect(() => {
   const handleDeclaringWinner = (e, stageName, matchIndex) => {
     const key = `${stageName}-${matchIndex}`; // unique key for each match
     const winnerId = e.target.value; // get the selected method
-
     console.log(`🏆 [Winner] Selected winner for ${stageName} match ${matchIndex + 1}`);
-    
     setTieBreakerState(prev => {
     const newState = {
       ...prev,
@@ -110,11 +111,118 @@ useEffect(() => {
     setMatchData(updatedMatch);
   }
 
-  //HANDLE SCORE SUBMIT
+  // HANDLE RESET MATCH
+  const resetMatch = async(stageName, matchIndex) => {
+    const confirm = window.confirm("Are you sure you want to reset this match?");
+    if(!confirm) return;
+    console.log(`🔄 [Reset] Resetting ${stageName} match ${matchIndex + 1}`);
+    
+    setLoadingMatches(prev => ({
+      ...prev,
+      [`${stageName}-${matchIndex}`]: true
+    }));
+    try {
+      //reset match to initial state
+      const response = await axios.put(
+        `http://localhost:8000/api/tournaments/${tournamentData._id}/reset-knockout-match/${stageName}/${matchIndex}`
+      )
+      console.log("🔍 State should be updated now...");
+      // Clear the tie-breaker selection UI
+      setTieBreakerState(prev => ({
+        ...prev,
+              [`${stageName}-${matchIndex}`]: { method: '', winner: '' }
+            }));
+            setPromptTieBreakerMethod(prev => ({
+              ...prev,
+              [`${stageName}-${matchIndex}`]: false
+            }));
+
+            setTieBreakerWarning(""); // Clear any warnings
+
+      // UPDATE UI WITH NEW SCORES - merge backend updates into local state
+        setMatchData(prevMatchData => {
+          // create a copy of the entire matchData object
+          const updatedMatchData = { ...prevMatchData };
+
+          //update current match with new scores and winner/loser info
+          const stageMatches = [...updatedMatchData[stageName]];
+          const originalMatch = stageMatches[matchIndex];
+
+          //reset match scores and status
+          const updatedMatch = {
+            ...originalMatch,
+            participants: [
+              { ...originalMatch.participants[0], score: 0 },
+              { ...originalMatch.participants[1], score: 0 }
+            ],
+            status: "pending",
+            winner: null,
+            loser: null
+          };
+
+          console.log("After reset:", {
+            matchData: updatedMatchData,
+            prompt: promptTieBreakerMethod
+          });
+
+          // replace old match data with updated version
+          stageMatches[matchIndex] = updatedMatch;
+          updatedMatchData[stageName] = stageMatches;
+
+          //remove match from submittedMatches so inputs become editable again
+        setSubmittedMatches(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(`${stageName}-${matchIndex}`);
+            return newSet;
+        });
+
+          // update the next matches (finals, third place) if backend advances participants
+          if(Array.isArray(response?.data?.updatedMatches)){
+            // LOG how many next matches we’re processing
+            console.log(`🔍 Processing ${response.data.updatedMatches.length} nextMatches`);
+
+            response.data.updatedMatches.forEach(nextMatch => {
+               // loop through each stage
+                Object.keys(updatedMatchData).forEach(stage => {
+                updatedMatchData[stage] = updatedMatchData[stage].map(match => {
+                  //find the correct next match
+                  console.log(`Checking if ${match._id} === ${updatedMatch._id}`);
+                  if(match._id.toString() === nextMatch._id){
+                    console.log(`✅ Found and updating match in ${stage}`);
+                    // return a new object to trigger React re-render
+                    return {
+                      ...nextMatch,
+                      participants: nextMatch.participants.map(p => ({ ...p })) // ensure participants are copied correctly
+                    }
+                  }
+                  return match;
+                });
+              })
+            })
+          }
+          console.log("📊 Reset Match data:", updatedMatchData);
+          return updatedMatchData;
+        })
+    } catch (error) {
+      console.error("❌Error resetting match:", error.response?.data || error.message || error);
+    }finally{
+      setLoadingMatches(prev => ({
+        ...prev,
+        [`${stageName}-${matchIndex}`]: false
+      }));
+    }
+  }
+
+
+ // HANDLE SCORE SUBMISSION
   const handleScoreSubmit = async(e, stageName, matchIndex) => {
     e.preventDefault();
-    console.log(`📊 [ScoreSubmit] Submitting ${stageName} match ${matchIndex + 1}`);
+    setLoadingMatches(prev => ({
+      ...prev,
+      [`${stageName}-${matchIndex}`]: true
+    }));
 
+    console.log(`📊 [ScoreSubmit] Submitting ${stageName} match ${matchIndex + 1}`);
     try {
       let response;
        //safety check
@@ -144,7 +252,6 @@ useEffect(() => {
           const winnerId = tieBreakerState[tieBreakerKey]?.winner;
 
           console.log(`🤝 [Draw] Scores tied ${p1Score}-${p2Score}, applying tie breaker: ${method || 'none'}`);
-
           console.log("🔍 Tie-breaker info:", { method, winnerId, tieBreakerKey });
           console.log("🔍 winnerDeclarationCheck result:", winnerDeclarationCheck(method));
 
@@ -157,7 +264,7 @@ useEffect(() => {
               participant2Score: p2Score,
               knockoutMatchTieBreaker: {
                 method: method || null,
-                winner: winnerId || null // will be updated if a winner is declared
+                winner: winnerId || null// will be updated if a winner is declared
               }
             };
             console.log("🔍 Payload created:", payload);
@@ -171,23 +278,9 @@ useEffect(() => {
             //✅ UPDATE backend with the new match data
             response = await axios.put(
               `http://localhost:8000/api/tournaments/${tournamentData._id}/knockout-matches/${stageName}/${matchIndex}`,
-              payload,
-              {timeout: 10000}
+              payload
             );
 
-            const winnerName = participantLookup[winnerId]?.participantName;
-            
-            setCompletedTieBreakerMatch(prev => {
-              const newState = {
-                ...prev,
-                [`${stageName}-${matchIndex}`]: {
-                  winner: winnerName,
-                  method: formatSelectedTieBreakerName(method)
-                }
-              };
-              console.log("🎯 Setting completedTieBreakerMatch:", newState);
-              return newState;
-            });
             console.log("🔍 State should be updated now...");
             // Clear the tie-breaker selection UI
               setTieBreakerState(prev => ({
@@ -205,25 +298,37 @@ useEffect(() => {
             
           // if user selects extra time or golden goal
           }else if(['extraTime', 'goldenGoal'].includes(method)){
-            if(p1Score !== p2Score){
               const payload = {
                 participant1Score: p1Score,
                 participant2Score: p2Score,
-                knockoutMatchTieBreaker: {method}
-              }
+                knockoutMatchTieBreaker: {
+                  method: method || null,
+                  winner: winnerId || null // will be updated if a winner is declared
+                }
+              };
               response = await axios.put(
                 `http://localhost:8000/api/tournaments/${tournamentData._id}/knockout-matches/${stageName}/${matchIndex}`,
                 payload
               );
-            }
-            console.log("✅ [ScoreSubmit] Match updated with extra time result");
+
+            console.log("🔍 State should be updated now...");
+            // Clear the tie-breaker selection UI
+              setTieBreakerState(prev => ({
+              ...prev,
+              [`${stageName}-${matchIndex}`]: { method: '', winner: '' }
+            }));
+
+            setPromptTieBreakerMethod(prev => ({
+              ...prev,
+              [`${stageName}-${matchIndex}`]: false
+            }));
+
+            setTieBreakerWarning(""); // Clear any warnings
+            
+            console.log("✅ [ScoreSubmit] Match updated with extra time or golden goal result");
 
           }else{
             console.warn("⚠️ [TieBreaker] No tie breaking method selected for draw");
-            setPromptTieBreakerMethod(prev => ({
-              ...prev,
-              [`${stageName}-${matchIndex}`]: true
-            }));
             // no method selected
           setPromptTieBreakerMethod(prev => ({
             ...prev,
@@ -236,26 +341,44 @@ useEffect(() => {
           }else{
             // No draw, submit match scores directly
             console.log(`⚽ [Score] Final score: ${p1Score}-${p2Score}`);
+            const tieBreakerKey = `${stageName}-${matchIndex}`;
+            const method = tieBreakerState[tieBreakerKey]?.method;
+            const winnerId = tieBreakerState[tieBreakerKey]?.winner;
+
             const payload = {
               participant1Score: p1Score,
               participant2Score: p2Score,
-              knockoutMatchTieBreaker: null
+              knockoutMatchTieBreaker: method ? { method } : null,
+              winner: winnerId || null // will be updated if a winner is declared
             }
             response = await axios.put(
               `http://localhost:8000/api/tournaments/${tournamentData._id}/knockout-matches/${stageName}/${matchIndex}`,
               payload
             );
+            // LOG HERE: what backend sent back
+            console.log("🚀 Backend response nextMatches:",
+              response?.data?.nextMatches?.map(m => ({
+                id: m?._id?.toString(),
+                stage: m?.stage,
+                p1: m?.participants?.[0]?.participantId,
+                p2: m?.participants?.[1]?.participantId
+              }))
+            );
             console.log("✅ [ScoreSubmit] Match updated successfully");
+
         }
         
-        // UPDATE UI WITH NEW SCORES - 
+        // UPDATE UI WITH NEW SCORES - merge backend updates into local state
         setMatchData(prevMatchData => {
-          //copy all stages
+          // create a copy of the entire matchData object
           const updatedMatchData = { ...prevMatchData };
 
-          //update current match
+          //update current match with new scores and winner/loser info
           const stageMatches = [...updatedMatchData[stageName]];
           const originalMatch = stageMatches[matchIndex];
+
+          //store tiebreaker method if any
+          const method = response?.data?.match?.knockoutMatchTieBreaker?.method || null;
 
           const updatedMatch = {
             ...originalMatch,
@@ -264,29 +387,36 @@ useEffect(() => {
               { ...originalMatch.participants[1], score: p2Score }
             ],
             status: "completed",
-            winner: response?.data?.match?.winner || null
+            tieBreakerMethod: method,
+            winner: response?.data?.match?.winner || null,
+            knockoutMatchTieBreaker: response?.data?.match?.knockoutMatchTieBreaker || null
           };
 
+          // replace old match data with updated version
           stageMatches[matchIndex] = updatedMatch;
           updatedMatchData[stageName] = stageMatches;
 
-          //update the next match with the winner(s) of the current match
-          if(response?.data?.nextMatch){
+          // update the next matches (finals, third place) if backend advances participants
+          if(Array.isArray(response?.data?.nextMatches)){
+            // LOG how many next matches we’re processing
+            console.log(`🔍 Processing ${response.data.nextMatches.length} nextMatches`);
 
-            //New updated next match data(to trigger UI update)
-            const nextMatch = response.data.nextMatch;
-            console.log("📍 Updating next match:", nextMatch);
-
-            //find the next stage with the next match
-            Object.keys(updatedMatchData).forEach(stage => {
-              updatedMatchData[stage] = updatedMatchData[stage].map(match => {
-                //Update the next match with new data
-                if(match._id === nextMatch._id){
-                  console.log(`✅ Found and updating match in ${stage}`);
-                  return nextMatch;
-                }
-                return match;
-              });
+            response.data.nextMatches.forEach(nextMatch => {
+               // loop through each stage
+                Object.keys(updatedMatchData).forEach(stage => {
+                updatedMatchData[stage] = updatedMatchData[stage].map(match => {
+                  //find the correct next match
+                  if(match._id.toString() === nextMatch._id){
+                    console.log(`✅ Found and updating match in ${stage}`);
+                    // return a new object to trigger React re-render
+                    return {
+                      ...nextMatch,
+                      participants: nextMatch.participants.map(p => ({ ...p })) // ensure participants are copied correctly
+                    }
+                  }
+                  return match;
+                });
+              })
             })
           }
           console.log("📊 Final updated match data:", updatedMatchData);
@@ -310,7 +440,10 @@ useEffect(() => {
   } else {
     console.error("🚨 Error setting up request:", error.message);
   }
-}
+} setLoadingMatches(prev => ({
+        ...prev,
+        [`${stageName}-${matchIndex}`]: false
+      }));
 }
 
 //Debugging: Log when finals match data changes
@@ -338,7 +471,11 @@ useEffect(() => {
     }
     fetchKnockoutMatches();
   }, [tournamentData]);
-  
+
+Object.entries(matchData).map(([stageName, matches]) => {
+    console.log(`📂 Stage: ${stageName}, Matches:`, matches);
+})
+
 
   return (
     <div>
@@ -358,13 +495,12 @@ useEffect(() => {
               )}
 
             <h2>Knockout Matches</h2>
-
             <div className="container-fluid">
               <div className='row justify-content-center'>
               {Object.entries(matchData).map(([stageName, matches]) => (
                 // render each stage
                 <div key={stageName} className='col-auto text-center'>
-                  <h3 className='text-capitalized'>{stageName}</h3>
+                  <h3>{formatStageName(stageName)}</h3>
                   {/* Render matches for this stage */}
                   <div className='d-flex flex-column gap-3'>
                     {matches.map((match, matchIndex) => {
@@ -376,6 +512,8 @@ useEffect(() => {
                       const tieBreakerKey = `${stageName}-${matchIndex}`;
                       const selectedMethod = tieBreakerState[tieBreakerKey]?.method;
                       const selectedWinner = tieBreakerState[tieBreakerKey]?.winner;
+                      const isLoading = loadingMatches[tieBreakerKey];
+                      const isSubmitted = match.status === 'completed';
 
                       // disable submit button if scores are tied and no tie breaker method is selected
                       const p1Score = Number(p1?.score ?? 0);
@@ -388,8 +526,16 @@ useEffect(() => {
                       // render all match cards
                       return (
                         <div key={match._id} className='card p-2 border rounded'>
+                          {isLoading ? (
+                            <div className="text-center py-4">
+                              <div className="spinner-border text-primary" role="status">
+                                <span className="visually-hidden">Loading...</span>
+                              </div>
+                            </div>
+                          ): (
+                            
+                          <>
                           <div className='card-body d-flex flex-row align-items-center'>
-
                           <p><strong>Match {match.matchNumber}</strong></p>
                           {/* participant1 */}
                           <label className='me-2'>{participant1?.participantName || "TBD"}</label>
@@ -416,29 +562,27 @@ useEffect(() => {
                           />
                           </div>
 
-                          {/* Debugging */}
-                          {console.log("🔍 JSX Debug:", {
-                            key: `${stageName}-${matchIndex}`,
-                            completedData: completedTieBreakerMatch[`${stageName}-${matchIndex}`],
-                            promptTieBreaker: promptTieBreakerMethod[tieBreakerKey],
-                            fullCompletedState: completedTieBreakerMatch // Add this line
-                          })}
-                          {/* Tie-breaker section - show either completed result or selection UI */}
-                          {completedTieBreakerMatch[`${stageName}-${matchIndex}`] ? (
+                          {/* WINNER/TIE-BREAKER UI */}
+                          {/* Display the method a match was decided*/}
+                          {match.status === 'completed' ?(
                             // ✅ Show completed tie-breaker result
                             <div className="mt-2 alert alert-success">
-                              <strong>Winner:</strong> {completedTieBreakerMatch[`${stageName}-${matchIndex}`].winner} 
-                              <span> via {completedTieBreakerMatch[`${stageName}-${matchIndex}`].method}</span>
+                              <strong>
+                                {participantLookup[match.winner]?.participantName || "Winner"}
+                                {match.knockoutMatchTieBreaker?.method
+                                  ? ` wins via ${formatSelectedTieBreakerName(match.knockoutMatchTieBreaker.method)}`
+                                  : " wins"}
+                              </strong>
                             </div>
+                            // Prompt user to select a tie-breaking method if match is a draw
                           ) : promptTieBreakerMethod[tieBreakerKey] ? (
-                            // 🔄 Show your existing tie-breaker selection UI
                             <>  
                               {tieBreakerWarning && (
                                 <div className="alert alert-warning mt-2">
                                   {tieBreakerWarning}
                                 </div>
                               )}
-
+                              {/* TIE BREAKING SELECTION DROP DOWN */}
                               <div className="mb-2">
                                 <label className="form-label">Select Tiebreaker Method: </label>
                                 <select
@@ -453,7 +597,7 @@ useEffect(() => {
                                   <option value="rockPaperScissors">Rock Paper Scissors</option>
                                 </select>
                               </div>
-
+                              {/* Display the selected tie-breaker method */}
                               {selectedMethod && (
                                 <div className="mt-2 alert alert-info">
                                   <strong>Tie Breaker: </strong> {formatSelectedTieBreakerName(selectedMethod)}
@@ -485,7 +629,7 @@ useEffect(() => {
                                   </div>
                                 </div>
                               )}
-
+                              {/* DISPLAY MATCH WINNER */}
                               {selectedMethod && winnerDeclarationCheck(selectedMethod) && selectedWinner && (
                                 <div className="mt-2 alert alert-success">
                                   <strong>Winner Selected: </strong> {participantLookup[selectedWinner]?.participantName}
@@ -493,27 +637,38 @@ useEffect(() => {
                               )}
                             </>
                           ) : null}
-
+                        {/* ------------------BUTTONS--------------------- */}
                         {/* SUBMIT SCORE */}
                           <button
                             type='button'
                             className='btn btn-primary mt-4'
                             onClick= {(e) => handleScoreSubmit(e, stageName, matchIndex)}
-                            disabled={disableSubmit}
+                            disabled={ isSubmitted }
                           >
                             Submit Score
                           </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
 
-              </div>
+                          {/* RESET MATCH */}
+                          {match.status === 'completed' && (
+                          <button
+                            type='button'
+                            className='btn btn-danger mt-4 ms-2'
+                            onClick= {() => resetMatch(stageName, matchIndex)}>
+                            Reset Match
+                          </button>
+                          )}
+                        </>
+                      )}
+                  </div>
+                );
+              })}
             </div>
           </div>
-        )
-      }
+        ))}
+      </div>
+    </div>
+  </div>
+  );
+}
 
 export default FinalsStage

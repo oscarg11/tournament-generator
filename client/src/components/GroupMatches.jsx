@@ -326,8 +326,8 @@ useEffect(() => {
                                                     
                                                 {/* Show reset button only if match is completed */}
                                                 </div>
-                                                {/* reset match button */}
                                                 {!groupStageConcluded && (
+                                                // {/* reset match button */}
                                                     <button 
                                                         type='button'
                                                         className='btn btn-danger mt-2 ms-2'
