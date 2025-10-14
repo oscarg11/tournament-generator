@@ -1,13 +1,10 @@
-import React, {useState} from 'react'
-import GroupStandings from '../components/GroupStandings'
-import GroupMatches from '../components/GroupMatches'
+import { useOutletContext, Link, Outlet} from 'react-router-dom'
 
-const GroupStage = ({tournamentData, setTournamentData, matchData, setMatchData, refreshData}) => {
-  // state to track which component to display
-  const [active, setActive] = useState(() => {
-    const saved = localStorage.getItem("activeTab");
-    return saved === "matches" ? false : true;
-  });
+const GroupStage = () => {
+  const {tournamentData} = useOutletContext();
+  //read from Dashboars's context
+  const context = useOutletContext();
+  
   console.log("📥 tournamentData.updatedAt in GroupStage:", tournamentData.updatedAt);
 
 
@@ -18,43 +15,21 @@ const GroupStage = ({tournamentData, setTournamentData, matchData, setMatchData,
           <div className="collapse navbar-collapse justify-content-start" id="navbarNav">
             <ul className="navbar-nav">
                 <li className="nav-item">
-                    <button className="btn btn-light mx-2"
-                    onClick={() => {
-                      localStorage.setItem("activeTab", "standings");
-                      setActive(true)
-                    }}>
-                      Group Standings
-                    </button>
+                  <Link to={`/dashboard/${tournamentData._id}/group-stage/standings`} className="nav-link">
+                    Group Standings
+                  </Link>
                 </li>
                 <li className="nav-item">
-                    <button className="btn btn-light mx-2" 
-                    onClick={() => {
-                        localStorage.setItem("activeTab", "matches");
-                        setActive(false);      // show matches
-                    }}>
-                      Group Matches
-                    </button>
+                  <Link to={`/dashboard/${tournamentData._id}/group-stage/matches`} className="nav-link">
+                    Group Matches
+                  </Link>
                 </li>
             </ul>
           </div>
         </nav>
-          {/* if active state is true display group standings, else display group matches */}
+          {/* Display either standings or matches*/}
             <div className="flex flex-row gap-3">
-                <>
-                  {active? <GroupStandings 
-                            key="standings"
-                            groups={tournamentData.groups}
-                            matches={matchData}
-                            /> 
-                  : 
-                  <GroupMatches
-                          tournamentData={tournamentData}
-                          setTournamentData={setTournamentData}
-                          matchData={matchData}
-                          setMatchData={setMatchData}
-                          refreshData={refreshData}
-                  />}
-                </>
+                <Outlet context={context}/>
             </div>
     </div>
 )

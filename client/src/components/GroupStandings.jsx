@@ -1,6 +1,9 @@
-import React from 'react'
+import { useOutletContext } from 'react-router-dom'
 
-const GroupStandings = ({groups = [], matches = []}) => {
+const GroupStandings = () => {
+  const { tournamentData } = useOutletContext();
+  const groups = tournamentData.groups || [];
+
   if (!Array.isArray(groups)) {
     console.error("Error: `groups` is not an array", groups);
     return <div>Error loading groups.</div>;
@@ -8,7 +11,7 @@ const GroupStandings = ({groups = [], matches = []}) => {
 
   return (
     <div>
-       {groups.map((group, groupIndex) => {
+      {groups.map((group, groupIndex) => {
         if (!Array.isArray(group.participants)) {
           console.error(`Error: participant at index ${groupIndex} is not an array`, group.participants);
           return null; // Skip rendering this group

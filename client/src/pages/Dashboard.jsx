@@ -1,15 +1,12 @@
 import React, {useState, useEffect} from 'react'
-import {useParams} from 'react-router-dom'
+import {useParams, Link, Outlet} from 'react-router-dom'
 import axios from 'axios'
 import NavBar from '../components/NavBar'
-import GroupStage from '../components/GroupStage'
-import FinalsStage from '../components/FinalsStage'
-import TeamsTab from '../components/TeamsTab'
-import StatsTab from '../components/StatsTab'
-
 
 const Dashboard = () => {
+
   const { tournamentId } = useParams();
+
   console.log("Tournament ID (DASHBOARD)", tournamentId);
   const [tournamentData, setTournamentData] = useState({
     matches: [],
@@ -17,12 +14,10 @@ const Dashboard = () => {
     groups: [],
     numberOfGroupStageLegs: 0,
   });
+  
+  const [matchData, setMatchData] = useState([]);
+  const [loading, setLoading] = useState(true); // state to track loading status
 
-const [loading, setLoading] = useState(true); // state to track loading status
-
-const [matchData, setMatchData] = useState([]);
-
-const [activeTab, setActiveTab] = useState('groupStage'); // state to track which tab is active
 
   //display tournament data
   useEffect(() => {
@@ -73,51 +68,46 @@ const [activeTab, setActiveTab] = useState('groupStage'); // state to track whic
       <p>Format: {tournamentData.format}</p>
       {tournamentData.format === 'groupAndKnockout' && <p>Number of group stage legs: {tournamentData.numberOfGroupStageLegs}</p>}
 
-      {/* Tournament Navigation */}
-
       <div className="container">
+      {/* Tournament Navigation */}
         <nav className="navbar navbar-expand navbar-dark bg-primary">
             <div className="collapse navbar-collapse justify-content-center" id="navbarNav">
               <ul className="navbar-nav">
 
                   <li className="nav-item">
-                    <button className='nav-link btn btn-primary' onClick={() => setActiveTab("groupStage")}>Group Stage</button>
+                    <Link to={`/dashboard/${tournamentId}/group-stage`} className="nav-link">
+                      Group Stage
+                    </Link>
                   </li>
 
                   <li className="nav-item">
-                    <button className='nav-link btn btn-primary' onClick={() => setActiveTab("finalsStage")}>Finals Stage</button>
+                    <Link to={`/dashboard/${tournamentId}/finals-stage`} className="nav-link">
+                      Finals Stage
+                    </Link>
                   </li>
 
                   <li className="nav-item">
-                    <button className='nav-link btn btn-primary' onClick={() => setActiveTab("teamsTab")}>Teams</button>
+                    <Link to={`/dashboard/${tournamentId}/teams`} className="nav-link">
+                      Teams
+                    </Link>
                   </li>
 
                   <li className="nav-item">
-                    <button className='nav-link btn btn-primary' onClick={() => setActiveTab("statsTab")}>Stats</button>
+                    <Link to={`/dashboard/${tournamentId}/stats`} className="nav-link">
+                      Stats
+                    </Link>
                   </li>
               </ul>
             </div>
         </nav>
         
-        {/* Display active tab based on state */}
+        <Outlet context={{
+          tournamentData,
+          setTournamentData,
+          matchData,
+          setMatchData
+        }}/>
 
-        {activeTab === 'groupStage' && <GroupStage 
-          tournamentData={tournamentData}
-          setTournamentData={setTournamentData}
-          matchData={matchData}
-          setMatchData={setMatchData}
-          setActiveTab={setActiveTab}
-        />}
-
-        {!loading && activeTab === 'finalsStage' && (<FinalsStage 
-          tournamentData={tournamentData}
-          setTournamentData={setTournamentData}
-          matchData={matchData}
-          setMatchData={setMatchData}/>)}
-
-        {activeTab === 'teamsTab' && <TeamsTab />}
-
-        {activeTab === 'statsTab' && <StatsTab />}
 
       </div>
     

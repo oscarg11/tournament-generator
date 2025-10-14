@@ -1,8 +1,10 @@
 import React, {useState, useEffect, useMemo} from 'react'
+import { useOutletContext } from 'react-router-dom'
 import axios from 'axios'
 import { participantLookupFunction } from '../helpers/tournamentUtills';
 
-const GroupMatches = ({tournamentData, setTournamentData, setActiveTab}) => {
+const GroupMatches = () => {
+    const { tournamentData, setTournamentData, setActiveTab } = useOutletContext();
     const [matchData, setMatchData] = useState([]);
     //loading indicators
     const [submittingMatch, setSubmittingMatch] = useState(null);//holds {roundIndex, matchIndex} of the match being submitted

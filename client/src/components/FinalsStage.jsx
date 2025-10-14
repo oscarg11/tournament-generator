@@ -1,9 +1,11 @@
 import React, { useState,useEffect, useMemo } from 'react'
+import { useOutletContext } from 'react-router-dom'
 import axios from 'axios'
 import { participantLookupFunction } from '../helpers/tournamentUtills'
 
-const FinalsStage = ({tournamentData, setTournamentData}) => {
-  const [matchData, setMatchData] = useState([])
+const FinalsStage = () => {
+  const {tournamentData, setTournamentData, matchData, setMatchData} = useOutletContext();
+  
   //tie breaker data
   const [tieBreakerState, setTieBreakerState] = useState({});
   // state to display prompt for tie breaker method selection
