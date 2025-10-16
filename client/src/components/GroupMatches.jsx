@@ -1,10 +1,10 @@
 import React, {useState, useEffect, useMemo} from 'react'
-import { useOutletContext } from 'react-router-dom'
+import { useOutletContext, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { participantLookupFunction } from '../helpers/tournamentUtills';
 
 const GroupMatches = () => {
-    const { tournamentData, setTournamentData, setActiveTab } = useOutletContext();
+    const { tournamentData, setTournamentData } = useOutletContext();
     const [matchData, setMatchData] = useState([]);
     //loading indicators
     const [submittingMatch, setSubmittingMatch] = useState(null);//holds {roundIndex, matchIndex} of the match being submitted
@@ -12,6 +12,8 @@ const GroupMatches = () => {
     const [resettingMatch, setResettingMatch] = useState(null); //holds {roundIndex, matchIndex} of the match being reset
     //conclude grop stage spinner state
     const [concludingGroupStage, setConcludingGroupStage] = useState(false);
+
+    const navigate = useNavigate();
 
 //Participant Lookup Function to get Participant name and team name
     const participantLookup = useMemo(() => {
@@ -181,7 +183,7 @@ const handleKnockoutStageCreation = async () => {
             `http://localhost:8000/api/tournaments/${tournamentData._id}/create-knockout-stage`
         )
         console.log("Knockout stage created successfully ✅");
-        setActiveTab('finalsStage');
+        navigate(`/dashboard/${tournamentData._id}/finals-stage`);
     } catch (error) {
         console.error("Error creating knockout stage:", error);
         alert("Error creating knockout stage. Please try again.");
