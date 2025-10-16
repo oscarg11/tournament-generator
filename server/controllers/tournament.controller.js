@@ -307,7 +307,7 @@ module.exports.createKnockoutMatches = async (req, res) => {
      * that is linked to the matches from the previous round. This ensures that 
      * each winner has a designated match to flow into as the tournament progresses.
      * 
-     * The function manually generates ObjectIds for all matches so that links between 
+     * This is why I manually created IDs for matches so that they can be linked to future matches.
      * rounds (via `nextMatchId` and `nextSlotIndex`) can be defined before inserting them.
      * All matches are flattened and inserted into the database in one batch, and the 
      * tournament is updated with the full knockout match list.
@@ -347,11 +347,10 @@ module.exports.createKnockoutMatches = async (req, res) => {
                     stage: 'Final',
                     status: 'pending'
                 };
-                //push the match to the allKnockoutMatches array
-                allKnockoutMatches.push(grandFinalMatch);
-                //insert the match into the database
-                await Match.insertMany(allKnockoutMatches);
-                //save the match to the tournament
+                
+                //insert the match into the db and save it to the tournament
+                const [insertedMatch] = await Match.insertMany([grandFinalMatch]);
+                tournament.matches.push(insertedMatch._id);
                 await tournament.save();
 
                 console.log("✅ Grand Final Match Created:", grandFinalMatch);
