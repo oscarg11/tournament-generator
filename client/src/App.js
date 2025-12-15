@@ -5,6 +5,7 @@ import HomePage from './pages/HomePage';
 import Dashboard from './pages/Dashboard';
 import AllTournaments from './pages/AllTournaments';
 import CreateTournament from './components/CreateTournament';
+import OverView from './components/OverView';
 import GroupStage from './components/GroupStage';
 import GroupMatches from './components/GroupMatches';
 import GroupStandings from './components/GroupStandings';
@@ -21,6 +22,7 @@ function App() {
           <Route path='/' element={ <HomePage/> } />
           <Route path='/create-tournament' element={ <CreateTournament/> } />
           <Route path='/dashboard/:tournamentId' element={ <Dashboard/> }>
+            <Route path='overview' element={ <OverView/> } />
             <Route path='group-stage' element={ <GroupStage/>}>
               <Route path='matches' element={ <GroupMatches/>} />
               <Route path='standings' element={ <GroupStandings/>} />
