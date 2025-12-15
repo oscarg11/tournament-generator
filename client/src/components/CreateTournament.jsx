@@ -8,100 +8,41 @@ const CreateTournament = () => {
     tournamentName: '',
     format: '',
     numberOfGroupStageLegs: '',
-    numberOfParticipants: '',
-    participants: []
+    numberOfParticipants: ''
   });
 
   const navigate = useNavigate();
-
-
-// Temporary state for current participant
-  const [currentParticipant, setCurrentParticipant] = useState({
-    participantName: '',
-    teamName: ''
-  });
   
   // errors state
   const [errors, setErrors] = useState({});
 
-
   const onChangeHandler = (e) => {
     const { name, value } = e.target;
-    // update current participant details
-    if (name === 'participantName' || name === 'teamName') {
-      setCurrentParticipant({ ...currentParticipant, [name]: value })
-    } else {
-      setTournamentData(tournamentData => ({ ...tournamentData, [name]: value }));
-    }
-  };
-
-
-  // Add participant & validation
-  const handleAddParticipant = () => {
-    let localErrors = {};
-  
-    if (!currentParticipant.participantName || currentParticipant.participantName.length < 2) {
-      localErrors.participantName = { message: "A name is required and must be at least 2 characters." };
-    }
-    if (!currentParticipant.teamName || currentParticipant.teamName.length < 2) {
-      localErrors.teamName = { message: "Team name is required and must be at least 2 characters." };
-    }
-  
-    // If there are errors, set them and return
-    if (Object.keys(localErrors).length > 0) {
-      setErrors(localErrors);
-      return;
-    }
-  
-    // Add participant locally to the tournamentData object
-    setTournamentData(prevData => ({
-      ...prevData,
-      participants: [...prevData.participants, currentParticipant],
+    setTournamentData(prev => ({
+      ...prev,
+      [name]: ['numberOfGroupStageLegs', 'numberOfParticipants'].includes(name) ? parseInt(value) : value
     }));
-  
-    // Clear current participant form
-    setCurrentParticipant({ participantName: '', teamName: '' });
+    // Clear specific field error on change
+    setErrors(prevErrors => ({ ...prevErrors, [name]: undefined }));
   };
-  ;
-  
-
-  // Delete participant
-  const handleDeleteParticipant = index => {
-    setTournamentData(prevData => ({
-      ...prevData,
-      participants: prevData.participants.filter((_, i) => i !== index)
-    }));
-  };
-
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    // Validate that all participants are complete
-    if(tournamentData.participants.length < parseInt(tournamentData.numberOfParticipants)){
-      setErrors(prevErrors => ({
-        ...prevErrors,
-        incompleteParticipants: 'Please complete all participants'
-      }))
-      return;
-    }else if(tournamentData.participants.length > parseInt(tournamentData.numberOfParticipants)){
-      setErrors(prevErrors => ({
-        ...prevErrors,
-        incompleteParticipants: 'Too many participants'
-      }))
-      return;
-    }
     axios.post('http://localhost:8000/api/tournaments/create-tournament', tournamentData)
       .then(res => {
-        console.log(res, 'New Tournament created successfully!');
+        const tournamentId = res.data.tournament._id;
+        console.log(res, 'New Tournament created successfully!', res.data.tournament);
+
         //reset form upon successful submission
         setTournamentData({
           tournamentName: '',
           format: '',
           numberOfGroupStageLegs: '',
           numberOfParticipants: '',
-          participants: []
         });
-      navigate('/all-tournaments');
+
+        //navigate to the overview page
+        navigate(`/dashboard/${tournamentId}/overview`);
         setErrors({});
       })
       .catch(err => {
@@ -117,6 +58,10 @@ const CreateTournament = () => {
     });
 };
 
+//disable submit button until all required fields are filled
+const isSubmitDisabled = !tournamentData.tournamentName || !tournamentData.format ||
+(tournamentData.format === 'groupAndKnockout' && !tournamentData.numberOfGroupStageLegs) ||
+!tournamentData.numberOfParticipants;
 
   return (
     // create tournament form
@@ -198,61 +143,11 @@ const CreateTournament = () => {
               </select>
             </div>
           </div>
-          
-          <div className="col-md-4">
-              {/* Participant's Name */}
-            <div className="form-group mb-3">
-              { errors.participantName ? <p className="text-danger">{errors.participantName.message}</p> : "" }
-              <label htmlFor="participantName">Participant's Name:</label>
-              <input
-                type="text"
-                className="form-control"
-                id="participantName"
-                placeholder="Enter Participant's Name"
-                name='participantName' 
-                value={currentParticipant.participantName}
-                onChange={onChangeHandler} />
-              <div>
-                {/* Team Name */}
-                { errors.teamName ? <p className="text-danger">{errors.teamName.message}</p> : "" }
-                <label htmlFor="teamName">Team Name:</label>
-                <input 
-                  type="text" 
-                  className="form-control" 
-                  id="teamName"
-                  placeholder="Enter Team Name"
-                  name='teamName'
-                  value={currentParticipant.teamName}
-                  onChange={onChangeHandler} />
-              </div>
-              {/* Button to add a new participant */}
-              <button type="button" className='btn btn-success mt-2' onClick={handleAddParticipant}>Add New Participant</button>
-            </div>
-
-            {/* Display list of participants in a scrollable box */}
-            <div style={{ maxHeight: "1000px", overflowY: "scroll" }}>
-              {}
-              <h3>Participants to Add:</h3>
-              {/* Incomplete participants validtation message */}
-              {errors.incommpleteParticipants && <p className="text-danger">{errors.incommpleteParticipants}</p>}
-
-              <ol  style={{ listStylePosition: 'inside' }}>
-              {tournamentData.participants.map((participant, index) => (
-              <li key={index} style={{ marginBottom: '10px', color: 'black' }}>
-                {/* Display the participant's name and team name */}
-                {`${participant.participantName} (${participant.teamName})`}
-                {/* Delete button for each participant */}
-                <button className='btn btn-danger' onClick={() => handleDeleteParticipant(index)} style={{ marginLeft: "10px" }}>
-                  Delete
-                </button>
-              </li>
-              ))}
-                
-              </ol>
-            </div>
-          </div>
+          {/* submit button */}
           <div className='col-md-12'>
-            <button className='btn btn-primary'>Create Tournament</button>
+            <button className='btn btn-primary' disabled={ isSubmitDisabled }>
+              Create Tournament
+            </button>
           </div>
     
         </form>
