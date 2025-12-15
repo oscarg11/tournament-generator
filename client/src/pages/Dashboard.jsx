@@ -74,6 +74,12 @@ const Dashboard = () => {
             <div className="collapse navbar-collapse justify-content-center" id="navbarNav">
               <ul className="navbar-nav">
 
+                <li className="nav-item">
+                    <Link to={`/dashboard/${tournamentId}/overview`} className="nav-link">
+                      Overview
+                    </Link>
+                  </li>
+
                   <li className="nav-item">
                     <Link to={`/dashboard/${tournamentId}/group-stage`} className="nav-link">
                       Group Stage
