@@ -23,18 +23,20 @@ const TournamentSchema = new mongoose.Schema({
             return this.format === 'groupAndKnockout';
         }, "Please select the number of group stage legs."],
     },
-    participants: [
-        { type: mongoose.Schema.Types.ObjectId, ref: 'Participant' }
-    ],
+    participants: {
+        type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Participant' }],
+        default: []
+    },
     groups: [
         {
             groupName: { type: String, required: true },
             participants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Participant' }]
         }
     ],
-    matches: [
-        { type: mongoose.Schema.Types.ObjectId, ref: 'Match' }
-    ],
+    matches: {
+        type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Match' }],
+        default: []
+    },
     groupStageConcluded: {type: Boolean, default: false},
     finalists: [
         {
@@ -46,7 +48,9 @@ const TournamentSchema = new mongoose.Schema({
             }
         }
     ],
-    
+    startTime: { type: Date, default: Date.now },
+    endTime: { type: Date, default: Date.now },
+    status: { type: String, enum: ['pending', 'started','concluded'], default: 'pending' },
 }, {timestamps: true});
 
 

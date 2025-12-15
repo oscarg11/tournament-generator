@@ -17,25 +17,113 @@ const Match = require("../models/match.model");
 //CREATE a tournament
 module.exports.createTournament = async (req, res) => {
     try {
-        const { tournamentName, format, numberOfGroupStageLegs, numberOfParticipants, participants } = req.body;
+        const { tournamentName, format, numberOfParticipants, numberOfGroupStageLegs } = req.body;
         console.log(`🏆 [CreateTournament] Creating "${tournamentName}" - ${format} format with ${numberOfParticipants} participants`);
         
-        //save participants to the db
-        const participantInstances = await Participant.insertMany(participants);
-        const participantIds = participantInstances.map(p => p._id);
-
-        console.log(`✅ Created ${participantIds.length} participants in database`);
+        const newTournament = await Tournament.create({
+            tournamentName,
+            format,
+            numberOfParticipants,
+            numberOfGroupStageLegs
+        });
         
-        // Shuffle participants
+        console.log(`🎉 Tournament "${tournamentName}" created successfully!`);
+        res.json({ tournament: newTournament });
+    } catch (err) {
+        console.error('❌ [CreateTournament] Error:', err.message);
+        res.status(500).json({ message: "Something went wrong in creating tournament", error: err });
+    }
+}
+
+//Add Participant to tournament
+module.exports.addParticipantToTournament = async (req, res) => {
+    
+    try {
+        //find tournament
+        const tournament = await Tournament.findById(req.params.id)
+        //validate tournament
+        if (!tournament) {
+            return res.status(404).json({ message: "Tournament not found!" });
+        }
+
+        //Guard to prevent adding participants if tournament has started
+        if(tournament.status !== 'pending'){
+            return res.status(400).json({
+                message: "Cannot add participants. Tournament has already started!"
+            });
+        }
+        //check if tournament has reached participant limit
+        if(tournament.participants.length >= tournament.numberOfParticipants){
+            return res.status(400).json({ message: "Tournament participant limit reached!" });
+        }
+        
+        //create a new participant instance
+        const newParticipant = await Participant.create(req.body);
+
+        //add participant to tournament
+        tournament.participants.push(newParticipant._id);
+        await tournament.save();
+
+        console.log(`✅ Tournament "${tournament.tournamentName}" updated with participant "${newParticipant.participantName}"`);
+        res.json({ participant: newParticipant });
+    } catch (error) {
+        console.error('❌ [AddParticipantToTournament] Error:', error.message);
+        res.status(500).json({ message: "Something went wrong in adding participant to tournament", error: error });
+    }
+}
+
+//Start Tournament
+module.exports.startTournament = async (req, res) => {
+    try {
+        //find tournament
+        const tournament = await Tournament.findById(req.params.id)
+            .populate('participants');
+
+        //validate tournament
+        if (!tournament) {
+            return res.status(404).json({ message: "Tournament not found!" });
+        }
+        //check if tournament has already started
+        if(tournament.status !== 'pending'){
+            return res.status(400).json({ message: "Tournament has already started!" });
+        }
+        //check if enough participants have been added
+        const currentCount = tournament.participants.length;
+        const maxCount = tournament.numberOfParticipants;
+
+        if(currentCount < maxCount){
+            return res.status(400).json({
+                message: `Not enough participants to start tournament! ${maxCount - currentCount} more needed to start.`
+            })
+        }
+
+        if(currentCount > maxCount){
+            return res.status(400).json({
+                message: `Too many participants to start tournament! Remove ${currentCount - maxCount} before starting.`
+            })
+        }
+
+        //check if tournament format is groupAndKnockout and numberOfGroupStageLegs is set
+        if(tournament.format === 'groupAndKnockout' && !tournament.numberOfGroupStageLegs) {
+            return res.status(400).json({ message: "Number of group stage legs must be set for groupAndKnockout format!" });
+        }
+
+        //extract participant IDs
+        const participantIds = tournament.participants.map(p => p._id);
+
+        console.log(`Participants in Db  ${tournament.tournamentName} BEFORE shuffle():`, participantIds);
+        
+        //SHUFFLE participants for randomization 
         const shuffledParticipants = shuffle([...participantIds]);
         console.log(`🔀 Participants shuffled for random group assignment`);
         console.log("Participants in createTournament AFTER shuffle():", shuffledParticipants);
 
+        //INITIALIZE groups and matches
         let groups = [];
         let matches = [];
         
         //generate groups and matches if the format is groupAndKnockout
-        if(format === "groupAndKnockout"){
+        if(tournament.format === "groupAndKnockout"){
             //CREATE GROUPS
             groups = createGroups(shuffledParticipants);
             console.log(`✅ Created ${groups.length} groups: ${groups.map(g => g.groupName).join(', ')}`);
@@ -48,23 +136,13 @@ module.exports.createTournament = async (req, res) => {
                 );
             }
             console.log(`✅ Group assignments saved to participant records`);
-
+            
             //GENERATE GROUP STAGE MATCHES
-            const { allMatches } = createGroupStageMatches(groups, numberOfGroupStageLegs);
+            const { allMatches } = createGroupStageMatches(groups, tournament.numberOfGroupStageLegs);
             matches = allMatches;
             console.log(`✅ Generated ${matches.length} group stage matches`);
         }
-        
-        const newTournament = await Tournament.create({
-            tournamentName,
-            format,
-            numberOfGroupStageLegs,
-            numberOfParticipants,
-            participants: participantIds,
-            groups: format === "groupAndKnockout" ? groups : undefined,
-            matches: []
-        });
-        
+
         // Save matches to the database
         if (matches.length > 0) {
             console.log(`💾 Inserting ${matches.length} matches into database...`);
@@ -72,16 +150,20 @@ module.exports.createTournament = async (req, res) => {
             const matchIds = matchInstances.map((match) => match._id);
             
             // console.log("✅ Inserted Match IDs:", matchIds);
-            newTournament.matches = matchIds;
-            await newTournament.save();
-            console.log(`✅ Tournament "${tournamentName}" updated with matches.`);
+            tournament.matches = matchIds;
+            //update tournament status to started
+            tournament.status = 'started';
+            //save to db
+            await tournament.save();
+            console.log(`✅ Tournament "${tournament.tournamentName}" updated with matches.`);
         }
         
-        console.log(`🎉 Tournament "${tournamentName}" created successfully!`);
-        res.json({ tournament: newTournament });
-    } catch (err) {
-        console.error('❌ [CreateTournament] Error:', err.message);
-        res.status(500).json({ message: "Something went wrong in creating tournament", error: err });
+        console.log(`🎉 Tournament "${tournament.tournamentName}" created successfully!`);
+        res.json({ tournament: tournament });
+
+    } catch (error) {
+        console.error('❌ [startTournament] Error:', error.message);
+        res.status(500).json({ message: "Something went wrong in starting tournament", error: error });
     }
 }
 
