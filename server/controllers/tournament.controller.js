@@ -37,7 +37,6 @@ module.exports.createTournament = async (req, res) => {
 
 //Add Participant to tournament
 module.exports.addParticipantToTournament = async (req, res) => {
-    
     try {
         //find tournament
         const tournament = await Tournament.findById(req.params.id)
@@ -63,9 +62,13 @@ module.exports.addParticipantToTournament = async (req, res) => {
         //add participant to tournament
         tournament.participants.push(newParticipant._id);
         await tournament.save();
-
         console.log(`✅ Tournament "${tournament.tournamentName}" updated with participant "${newParticipant.participantName}"`);
-        res.json({ participant: newParticipant });
+
+        //Re-fetch the tournament with updated Paricipants
+        const updatedTournament = await Tournament.findById(tournament._id)
+            .populate('participants')
+        res.json({ tournament: updatedTournament });
+        
     } catch (error) {
         console.error('❌ [AddParticipantToTournament] Error:', error.message);
         res.status(500).json({ message: "Something went wrong in adding participant to tournament", error: error });
@@ -107,7 +110,7 @@ module.exports.startTournament = async (req, res) => {
         if(tournament.format === 'groupAndKnockout' && !tournament.numberOfGroupStageLegs) {
             return res.status(400).json({ message: "Number of group stage legs must be set for groupAndKnockout format!" });
         }
-
+        console.log(`🏆 [startTournament] Tournament "${tournament.tournamentName}" is starting.`);
         //extract participant IDs
         const participantIds = tournament.participants.map(p => p._id);
 
@@ -136,7 +139,7 @@ module.exports.startTournament = async (req, res) => {
                 );
             }
             console.log(`✅ Group assignments saved to participant records`);
-            
+            console.log("Groups created:", groups);
             //GENERATE GROUP STAGE MATCHES
             const { allMatches } = createGroupStageMatches(groups, tournament.numberOfGroupStageLegs);
             matches = allMatches;
