@@ -1,16 +1,21 @@
 import React, {useState} from 'react'
-import { useOutletContext } from 'react-router-dom'
+import { useOutletContext, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 
 export const OverView = () => {
     const { tournamentData, setTournamentData } = useOutletContext();
 
+    const navigate = useNavigate();
+
     // errors state
     const [errors, setErrors] = useState({});
 
+    //start tournament button loading state
+    const [isStarting, setIsStarting] = useState(false);
+
     // Temporary state for current participant
     const [currentParticipant, setCurrentParticipant] = useState({
-      participantName: '',
+      participantName:'',
       teamName: ''
     });
 
@@ -40,29 +45,36 @@ export const OverView = () => {
     if (Object.keys(localErrors).length > 0) {
       setErrors(localErrors);
       return;
-    }else{
-      setErrors('');
     }
     try {
-      await axios.patch(
+      const res =await axios.patch(
         `http://localhost:8000/api/tournaments/${tournamentData._id}/add-participant`,
         currentParticipant
       )
+      //only clears errors on success
+      setErrors({});
       console.log('Participant added successfully');
-      // Add participant locally to the tournamentData object
-      setTournamentData(prevData => ({
-        ...prevData,
-        participants: [...prevData.participants, currentParticipant],
-      }));
-    
+
+      //update tournament data with new participant
+      setTournamentData(res.data.tournament)
+      console.log("Updated Tournament Data After adding one participant:", res.data.tournament);
+
       // Clear current participant form
       setCurrentParticipant({ participantName: '', teamName: '' });
       
     } catch (error) {
+      const backendErrors = error.response?.data?.message;
+
+      if (backendErrors){
+        setErrors({
+          numberOfParticipants: { message: backendErrors }
+        });
+      }else{
+        setErrors({ general: 'An error occurred. Please try again.' });
         console.error("❌Error Updating Tournament with Participant:", error.response?.data || error.message || error);
+      }
     }
   };
-  ;
   
 
   // Delete participant
@@ -80,40 +92,53 @@ export const OverView = () => {
     }));
   };
 
-//   const handleConfirm = (e) => {
-//     e.preventDefault()
-//     // Validate that all participants are complete
-//     if(tournamentData.participants.length < parseInt(tournamentData.numberOfParticipants)){
-//       setErrors(prevErrors => ({
-//         ...prevErrors,
-//         incompleteParticipants: 'Please complete all participants'
-//       }))
-//       return;
-//     }else if(tournamentData.participants.length > parseInt(tournamentData.numberOfParticipants)){
-//       setErrors(prevErrors => ({
-//         ...prevErrors,
-//         incompleteParticipants: 'Too many participants'
-//       }))
-//       return;
-//     }
-//     axios.patch(`http://localhost:8000/api/tournaments/${tournamentData._id}/update-tournament`, tournamentData)
-//       .then(res => {
-//         console.log(res, 'Tournament UPDATED successfully!');
-        
-//         setErrors({});
-//       })
-//       .catch(err => {
-//         if (err.response && err.response.data && err.response.data.error && err.response.data.error.errors) {
-//             //Validation error handling
-//             console.error('Validation Errors:', err.response.data.error.errors);
-//             setErrors(err.response.data.error.errors);
-//         } else {
-//             //General error handling
-//             console.error('Submission error:', err);
-//             setErrors({ general: 'An error occurred. Please try again.' });
-//         }
-//     });
-// };
+//START TOURNAMENT
+    const handleStartTournament = async () => {
+      console.log("🟢 handleStartTournament triggered");
+
+      if(tournamentData.status === 'started'){
+        alert("Tournament has already started.");
+        return;
+      }
+
+      //check if all participants have been added
+      if(tournamentData.participants.length < parseInt(tournamentData.numberOfParticipants)){
+        setErrors(prevErrors => ({
+          ...prevErrors,
+          incompleteParticipants: `You need to add all ${tournamentData.numberOfParticipants} participants before starting the tournament.`
+        }))
+        return;
+      }
+      //check if participants exceed the limit
+      if(tournamentData.participants.length > parseInt(tournamentData.numberOfParticipants)){
+        setErrors(prevErrors => ({
+          ...prevErrors,
+          incompleteParticipants: `You have exceeded the number of participants (${tournamentData.numberOfParticipants}). Please remove the extra participants before starting the tournament.`
+        }))
+        return;
+      }
+
+      const confirmStart = window.confirm("Are you sure you want to start the tournament? This action cannot be undone.");
+      if(!confirmStart) return;
+      try {
+        //loading indicator
+        setIsStarting(true);
+
+        await axios.patch(
+          `http://localhost:8000/api/tournaments/${tournamentData._id}/start-tournament`,
+          tournamentData
+        );
+
+        navigate(`/dashboard/${tournamentData._id}/group-stage/matches`);
+        console.log("Tournament started successfully!");
+        setErrors({});
+      } catch (error) {
+        console.error("Error concluding group stage:", error);
+        alert("Error concluding group stage. Please try again.");
+      }finally{
+        setIsStarting(false);
+      }
+    }
 
     
   return (
@@ -146,6 +171,10 @@ export const OverView = () => {
             </ol>
           </div>
           </div>
+          {/* Start Tournament Button */}
+          <button onClick={handleStartTournament} disabled={isStarting} className="btn btn-primary">
+            Start Tournament
+          </button>
       </div>
       <div className="container py-5">
         <h1>Add Participants</h1>
@@ -176,6 +205,10 @@ export const OverView = () => {
                 value={currentParticipant.teamName}
                 onChange={onChangeHandler} />
             </div>
+            {/* max number of participants error */}
+      
+            {errors.numberOfParticipants ? <p className="text-danger">{errors.numberOfParticipants.message}</p> : ""}
+    
             {/* Button to add a new participant */}
             <button type="button"
                     className='btn btn-success mt-2'
