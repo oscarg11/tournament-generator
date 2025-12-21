@@ -75,6 +75,48 @@ module.exports.addParticipantToTournament = async (req, res) => {
     }
 }
 
+// Delete a Participant from Tournament
+module.exports.deleteParticipantFromTournament = async (req, res) => {
+    try {
+        const tournamentId = req.params.tournamentId;
+        const participantId = req.params.participantId;
+
+        //find tournament
+        const tournament = await Tournament.findById(tournamentId)
+        //validate tournament
+        if (!tournament) {
+            return res.status(404).json({ message: "Tournament not found!" });
+        }
+
+        //Guard to prevent adding participants if tournament has started
+        if(tournament.status !== 'pending'){
+            return res.status(400).json({
+                message: "Cannot delete participants. Tournament has already started!"
+            });
+        }
+        
+        //log deleted participant name
+        const participant = await Participant.findById(participantId);
+        console.log(`🗑️ [DeleteParticipantFromTournament] Deleting Participant: "${participant.participantName}" from Tournament: "${tournament.tournamentName}"`);
+        
+        //delete participant id from participants array
+        const updatedParticipants = tournament.participants.filter(
+            pId => pId.toString() !== participantId
+        );
+        tournament.participants = updatedParticipants;
+        await tournament.save();
+
+        //re-fetch the tournament with updated participatns
+        const updatedTournament = await Tournament.findById(tournament._id)
+            .populate('participants');
+        
+        res.json({ tournament: updatedTournament });
+    } catch (error) {
+        console.error('❌ [DeleteParticipantFromTournament] Error:', error.message);
+        res.status(500).json({ message: "Something went wrong in deleting participant from tournament", error: error });
+    }
+}
+
 //Start Tournament
 module.exports.startTournament = async (req, res) => {
     try {
