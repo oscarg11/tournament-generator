@@ -8,11 +8,14 @@ module.exports = app => {
     // CREATE TOURNAMENT SHELL
     app.post('/api/tournaments/create-tournament', TournamentController.createTournament );
 
-    // UPDATE TOURNAMENT WITH PARTICIPANTS
+    // ADD PARTICIPANT
     app.patch('/api/tournaments/:id/add-participant', TournamentController.addParticipantToTournament);
 
+    //DELETE PARTICIPANT
+    app.delete('/api/tournaments/:tournamentId/delete-participant/:participantId', TournamentController.deleteParticipantFromTournament);
+
     // START TOURNAMENT
-    app.post('/api/tournaments/:id/start-tournament', TournamentController.startTournament);
+    app.patch('/api/tournaments/:id/start-tournament', TournamentController.startTournament);
 
     //Conclude group stage
     app.patch('/api/tournaments/:id/conclude-group-stage', TournamentController.concludeGroupStage);
