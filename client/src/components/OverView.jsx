@@ -78,7 +78,7 @@ export const OverView = () => {
   
 
   // Delete participant
-  const handleDeleteParticipant = index => {
+  const handleDeleteParticipant = async (participantId) => {
     //clear any existing errors
     if(tournamentData.participants.length <= parseInt(tournamentData.numberOfParticipants)){
       setErrors(prevErrors => ({
@@ -86,10 +86,18 @@ export const OverView = () => {
         incompleteParticipants: ''
       }))
     }
-    setTournamentData(prevData => ({
-      ...prevData,
-      participants: prevData.participants.filter((_, i) => i !== index)
-    }));
+    try {
+      const res = await axios.delete(
+        `http://localhost:8000/api/tournaments/${tournamentData._id}/delete-participant/${participantId}`,
+      )
+      console.log("participantId arg:", participantId);
+
+      setTournamentData(res.data.tournament);
+      console.log("Updated Tournament Data After Deleting one participant:", res.data.tournament);
+    } catch (error) {
+      console.error("❌Error Deleting Participant from Tournament:", error.response?.data || error.message || error);
+    }
+    
   };
 
 //START TOURNAMENT
@@ -158,12 +166,18 @@ export const OverView = () => {
             {/* Incomplete participants validtation message */}
             {errors.incompleteParticipants && <p className="text-danger">{errors.incompleteParticipants}</p>}
             <ol  style={{ listStylePosition: 'inside' }}>
-            {tournamentData.participants.map((participant, index) => (
-            <li key={index} style={{ marginBottom: '10px', color: 'black' }}>
+            {tournamentData.participants.map((participant) => (
+            <li key={participant._id} style={{ marginBottom: '10px', color: 'black' }}>
               {/* Display the participant's name and team name */}
               {`${participant.participantName} (${participant.teamName})`}
+
               {/* Delete button for each participant */}
-              <button className='btn btn-danger' onClick={() => handleDeleteParticipant(index)} style={{ marginLeft: "10px" }}>
+              <button className='btn btn-danger'
+              onClick = {() => {
+                console.log(`🗑️ Deleting Participant: "${participant.participantName}" from tournament`);
+                handleDeleteParticipant(participant._id);
+              }}
+              style={{ marginLeft: "10px" }}>
                 Delete
               </button>
             </li>
