@@ -27,12 +27,6 @@ const TournamentSchema = new mongoose.Schema({
         type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Participant' }],
         default: []
     },
-    groups: [
-        {
-            groupName: { type: String, required: true },
-            participants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Participant' }]
-        }
-    ],
     matches: {
         type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Match' }],
         default: []
