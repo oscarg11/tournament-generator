@@ -132,10 +132,12 @@ export const OverView = () => {
         //loading indicator
         setIsStarting(true);
 
-        await axios.patch(
+        const res = await axios.patch(
           `http://localhost:8000/api/tournaments/${tournamentData._id}/start-tournament`,
           tournamentData
         );
+
+        setTournamentData(res.data.tournament);
 
         navigate(`/dashboard/${tournamentData._id}/group-stage/matches`);
         console.log("Tournament started successfully!");
