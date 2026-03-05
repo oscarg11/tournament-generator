@@ -75,7 +75,6 @@ const createGroupStageMatches = (groups, numberOfGroupStageLegs) => {
                             { participantId: participant2, score: 0 },
                         ],
                         matchNumber: matchCount++, // Unique match number
-                        group: group.groupName,
                         round, // The round number
                         stage: 'group'
                     };
@@ -96,6 +95,20 @@ const createGroupStageMatches = (groups, numberOfGroupStageLegs) => {
     });
     return { allRounds, allMatches }; // ✅ Return both rounds and a flat list of matches
 };
+
+//ORGANIZE GROUP STAGE MATCHES BY ROUND
+const groupMatchesByRound = (matches = []) => {
+    const grouped = matches.reduce((acc, match) => {
+        if(!acc[match.round]) acc[match.round] = [];
+        acc[match.round].push(match);
+        return acc;
+    }, {});
+
+    //Sort rounds by round number and return an array of rounds, where each round is an array of matches
+    return Object.keys(grouped)
+        .sort((a, b) => Number(a) - Number(b))
+        .map(round => grouped[round]);
+}
 
 
 
@@ -192,85 +205,65 @@ if(!Array.isArray(matches) || matches.length === 0){
     return 0;
 }
 
-// Filter in matches between the two participants
-const filterHeadToHeadMatches = matches.filter(match => {
-    console.log("🏷️ Head-to-Head Participants:", match.participants);
+const aId = participantA?._id?.toString();
+const bId = participantB?._id?.toString();
+if (!aId || !bId) return 0;
 
-    // Now, match.participants are just IDs—no need to map `.participantId`
-    return match.participants.includes(participantA.toString()) 
-    && match.participants.includes(participantB.toString());
+// Only consider completed matches (recommended for correctness)
+const headToHeadMatches = matches.filter((match) => {
+if (match?.status !== "completed") return false;
+
+const ps = match?.participants;
+if (!Array.isArray(ps) || ps.length < 2) return false;
+
+const ids = ps.map((p) => p?.participantId?.toString());
+return ids.includes(aId) && ids.includes(bId);
 });
 
-// Initialize stats for both participants
-let statsA = { points: 0, goalsScored: 0, goalDifference: 0};
-let statsB = { points: 0, goalsScored: 0, goalDifference: 0};
+if (headToHeadMatches.length === 0) return 0;
 
-//loop through head to head matches
-for(const match of filterHeadToHeadMatches) {
-    const [p1, p2] = match.participants;
+let statsA = { points: 0, goalsScored: 0, goalDifference: 0 };
+let statsB = { points: 0, goalsScored: 0, goalDifference: 0 };
 
-    // convert participantId to string for comparison
-    // This is to ensure we are comparing the correct participants
-    const p1Id = p1
-    const p2Id = p2
-    const aId = participantA._id.toString();
-    
-    const bId = participantB._id.toString();
+for (const match of headToHeadMatches) {
+const ps = match.participants;
 
-    let aScore, bScore;
+// Find the participant entries for A and B inside this match
+const entryA = ps.find((p) => p?.participantId?.toString() === aId);
+const entryB = ps.find((p) => p?.participantId?.toString() === bId);
 
-    //find the scores for each participant
-    const participant1 = match.participants.find(p => p._id.toString() === p1Id);
-    const participant2 = match.participants.find(p => p._id.toString() === p2Id);
-
-    if (!participant1 || !participant2) {
-        console.error("❌ Participant not found for head-to-head comparison.");
-        continue;
-    }
-
-    // match participants to the correct ids
-    if(p1Id === aId && p2Id === bId){
-    aScore = p1.score;
-    bScore = p2.score;
-    }else if(p1Id === bId && p2Id === aId){
-    aScore = p2.score;
-    bScore = p1.score;
-    }else{
+if (!entryA || !entryB) {
+    // Shouldn’t happen due to filter, but safe guard
     continue;
-    }
-
-    console.log(`🏷️ Head-to-Head: ${participant1.participantName} vs ${participant2.participantName} - ${aScore}:${bScore}`);
-
-    // Update stats based on match result
-    if(aScore > bScore){
-    statsA.points += 3;
-    } else if(aScore < bScore){
-    statsB.points += 3;
-    } else {
-    statsA.points += 1;
-    statsB.points += 1;
-    }
-
-    // Update goals scored and goal difference
-    statsA.goalsScored += aScore;
-    statsB.goalsScored += bScore;
-
-    statsA.goalDifference += aScore - bScore;
-    statsB.goalDifference += bScore - aScore;
 }
 
-    // Update stats
-    if(statsA.points !== statsB.points){
-    return statsB.points - statsA.points;
-    }
-    if(statsA.goalDifference !== statsB.goalDifference){
-    return statsB.goalDifference - statsA.goalDifference;
-    }
-    if(statsA.goalsScored !== statsB.goalsScored){
-    return statsB.goalsScored - statsA.goalsScored;
-    }
+const aScore = Number(entryA.score ?? 0);
+const bScore = Number(entryB.score ?? 0);
 
-    return 0; //still tied
+// Points from head-to-head result
+if (aScore > bScore) statsA.points += 3;
+else if (aScore < bScore) statsB.points += 3;
+else {
+    statsA.points += 1;
+    statsB.points += 1;
+}
+
+// Goals + GD (head-to-head only)
+statsA.goalsScored += aScore;
+statsB.goalsScored += bScore;
+
+statsA.goalDifference += aScore - bScore;
+statsB.goalDifference += bScore - aScore;
+}
+
+// Compare head-to-head stats using same priority
+if (statsA.points !== statsB.points) return statsB.points - statsA.points;
+if (statsA.goalDifference !== statsB.goalDifference)
+return statsB.goalDifference - statsA.goalDifference;
+if (statsA.goalsScored !== statsB.goalsScored)
+return statsB.goalsScored - statsA.goalsScored;
+
+  return 0; // still tied
 };
 
 // WRAPPER FUNCTION TO GET SORTED LIST OF GROUP STANDINGS
@@ -592,11 +585,11 @@ const advanceParticipantsToNextMatch = (currentMatch, tournament) => {
     return updates;
 }
 
-
 module.exports = {
     createGroups,
     shuffle,
     createGroupStageMatches,
+    groupMatchesByRound,
     determineGroupMatchResult,
     sortGroupStandings,
     headToHeadComparison,
