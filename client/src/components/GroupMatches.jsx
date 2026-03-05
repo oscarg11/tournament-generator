@@ -4,8 +4,19 @@ import axios from 'axios'
 import { participantLookupFunction } from '../helpers/tournamentUtills';
 
 const GroupMatches = () => {
-    const { tournamentData, setTournamentData } = useOutletContext();
-    const [matchData, setMatchData] = useState([]);
+
+const { tournamentData, setTournamentData } = useOutletContext();
+console.log("B: got outlet context", tournamentData);
+
+const matches = Array.isArray(tournamentData?.matches?.[0])
+    ? tournamentData.matches
+    : [];
+
+
+
+    //score buffer state 
+    const [scoreInputs, setScoreInputs] = useState({});
+
     //loading indicators
     const [submittingMatch, setSubmittingMatch] = useState(null);//holds {roundIndex, matchIndex} of the match being submitted
     const [submittedMatches, setSubmittedMatches] = useState(new Set()) // track submitted matches
@@ -23,60 +34,79 @@ const GroupMatches = () => {
     //conclude group stage
     const groupStageConcluded = tournamentData.groupStageConcluded;
 
-    console.log("📥 tournamentData.updatedAt in GroupMatches:", tournamentData.updatedAt);
+    console.log("📥 tournamentData.updatedAt in GroupMatches:", tournamentData?.updatedAt);
 
-    //check if all matches are still pending
-    const allMatchesPending = matchData.every(round => round.every(match => match.status !== 'pending'));
+    console.log("matches shape check:", {
+    isArray: Array.isArray(matches),
+    length: matches?.length,
+    firstRoundIsArray: Array.isArray(matches?.[0]),
+    firstRoundType: typeof matches?.[0],
+    firstRoundValue: matches?.[0],
+});
+
+    const allMatchesPending =
+    Array.isArray(matches) &&
+    matches.length > 0 &&
+    matches.every(round =>
+        Array.isArray(round) &&
+        round.every(match => match.status !== 'pending')
+);
+
     
-    // RESET single match
-    const resetMatch = async (roundIndex, matchIndex) => {
-        //loading indicator
-        setResettingMatch({ roundIndex, matchIndex });
-        console.log("🔴 resetMatch triggered");
-        try{
-            await axios.put(
-                `http://localhost:8000/api/tournaments/${tournamentData._id}/reset-group-match/${roundIndex}/${matchIndex}`
-            );
-            console.log("Match reset successfully ✅");
-            
-            //locally update match data state for instant UI refresh
-            const updatedMatches = [...matchData];//shallow copy of matchData
-            updatedMatches[roundIndex] = [...updatedMatches[roundIndex]]; //shallow copy of the round
-            
-            const originalMatch = updatedMatches[roundIndex][matchIndex];
-            
-        // deep copy + reset the specific match
-        const resetMatch = {
-            ...originalMatch,
-            participants: [
-                { ...originalMatch.participants[0], score: 0},
-                { ...originalMatch.participants[1], score: 0},
-            ],
-            status: 'pending'
-        };
-        updatedMatches[roundIndex][matchIndex] = resetMatch;
-        setMatchData(updatedMatches); // trigger UI re-render
+// RESET single match
+const resetMatch = async (roundIndex, matchIndex) => {
+// ✅ correct loading indicator for reset
+setResettingMatch({ roundIndex, fullMatchIndex: matchIndex });
+console.log("🔴 resetMatch triggered");
 
-        //remove match from submittedMatches so inputs become editable again
-        setSubmittedMatches(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(`${roundIndex}-${matchIndex}`);
-            return newSet;
-        });
-        
-    }catch(err){
-        console.error("❌Error resetting match:", err.response?.data || err.message || err);
-    }finally{
-        setResettingMatch(null);
-    }
+try {
+const res = await axios.put(
+    `http://localhost:8000/api/tournaments/${tournamentData._id}/reset-group-match/${roundIndex}/${matchIndex}`
+);
+
+console.log("Match reset successfully ✅", res.data);
+
+// ✅ backend is source of truth now
+setTournamentData(res.data.tournament);
+
+// ✅ clear any buffered inputs for this match so UI doesn't show stale numbers
+const key1 = `${roundIndex}-${matchIndex}-1`;
+const key2 = `${roundIndex}-${matchIndex}-2`;
+setScoreInputs((prev) => {
+    const copy = { ...prev };
+    delete copy[key1];
+    delete copy[key2];
+    return copy;
+});
+
+// ✅ allow editing again
+setSubmittedMatches((prev) => {
+    const newSet = new Set(prev);
+    newSet.delete(`${roundIndex}-${matchIndex}`);
+    return newSet;
+});
+} catch (err) {
+console.error("❌Error resetting match:", err.response?.data || err.message || err);
+} finally {
+setResettingMatch(null);
 }
+};
 
 //onChange handler
 const onChangeHandler = (e, roundIndex, matchIndex, participantIndex) => {
-    const updatedMatches = [...matchData];
-    updatedMatches[roundIndex][matchIndex].participants[participantIndex - 1].score = parseInt(e.target.value) || 0;
-    setMatchData(updatedMatches);
+    const key = `${roundIndex}-${matchIndex}-${participantIndex}`;
+    const value = parseInt(e.target.value,10);
+
+    setScoreInputs(prev => ({
+        ...prev,
+        [key]: Number.isNaN(value) ? 0 : value
+    }));
 };
+
+useEffect(() => {
+  console.log("scoreInputs:", scoreInputs);
+}, [scoreInputs]);
+
 
 //handle score submit
 const handleScoreSubmit = async (e, roundIndex, matchIndex) =>{
@@ -84,58 +114,50 @@ const handleScoreSubmit = async (e, roundIndex, matchIndex) =>{
     console.log("🟢 handleScoreSubmit triggered");
     try {
         //loading indicator
-        setSubmittingMatch({roundIndex, matchIndex});
+        setSubmittingMatch({ roundIndex, fullMatchIndex: matchIndex });
 
         //safety check
-        if(!Array.isArray(matchData) || !Array.isArray(matchData[roundIndex])){
+        if(!Array.isArray(matches) || !Array.isArray(matches[roundIndex])){
             console.warn("⚠️ Invalid matchData structure");
             return;
         }
         
-        const matchToSubmit = matchData[roundIndex][matchIndex];
+        //each key is in the format of "roundIndex-matchIndex-participantIndex"
+        //this helps locate the score inputs for the two participants in this match
+        const key1 = `${roundIndex}-${matchIndex}-1`;
+        const key2 = `${roundIndex}-${matchIndex}-2`;
+
+        //get scores from input buffer, default to 0 if not found
+        const participant1Score = scoreInputs[key1] ?? 0;
+        const participant2Score = scoreInputs[key2] ?? 0;
         
+        //payload to send to backend
         const matchScores = {
-            participant1Score: matchToSubmit.participants[0]?.score ?? 0,
-            participant2Score: matchToSubmit.participants[1]?.score ?? 0
+            participant1Score,
+            participant2Score
         };
         
         //✅ UPDATE backend with the new match data
-        const response = await axios.put(
+        const res = await axios.put(
             `http://localhost:8000/api/tournaments/${tournamentData._id}/group-matches/${roundIndex}/${matchIndex}`,
             matchScores
         );
-        console.log("Match Updated Successfully ✅")
 
-        //get updated sorted standings from the response
-        const { sortedGroupStandings } = response.data;
+        console.log("PUT matches is 2D?", Array.isArray(res.data?.tournament?.matches?.[0]));
+        console.log("PUT matches type:", typeof res.data?.tournament?.matches);
+        console.log("PUT matches sample:", res.data?.tournament?.matches?.[0]);
 
-        // update the local state with the new standings
-        setTournamentData((prevData) => ({
-            ...prevData,
-            groups: prevData.groups.map(group => 
-                group.groupName === matchToSubmit.group
-                ? { ...group, participants: sortedGroupStandings }
-                :group
-            )
-        }))
-        
-        //locally update match data state for instant UI refresh
-        const updatedMatches = [...matchData];//shallow copy of matchData
-        updatedMatches[roundIndex] = [...updatedMatches[roundIndex]]; //shallow copy of the round
-        
-        // deep copy + update the specific match
-        const originalMatch = updatedMatches[roundIndex][matchIndex];
-        const updatedMatch = {
-            ...originalMatch,
-            participants: [
-                { ...originalMatch.participants[0], score: matchScores.participant1Score},
-                { ...originalMatch.participants[1], score: matchScores.participant2Score},
-            ],
-            status: 'completed'
-        };
-        
-        updatedMatches[roundIndex][matchIndex] = updatedMatch;
-        setMatchData(updatedMatches);
+
+        setTournamentData(res.data.tournament);
+        console.log("Updated Tournament Data After Match Update:", res.data.tournament);
+
+        //clear input buffer for this match
+        setScoreInputs(prev => {
+            const copy = { ...prev };
+            delete copy[key1];
+            delete copy[key2];
+            return copy;
+        });
         
     } catch (err) {
         console.error("Error updating match data:", err);
@@ -192,41 +214,47 @@ const handleKnockoutStageCreation = async () => {
 
 useEffect(() => {
     const fetchGroupMatches = async () => {
-        
         try {
             if (!tournamentData?._id) return;
             console.log("🎯 useEffect triggered by updatedAt in GroupMatches:", tournamentData.updatedAt);
             
             console.log("Fetching group matches for tournament:", tournamentData._id);
             
-            const response = await axios.get(`http://localhost:8000/api/tournaments/${tournamentData._id}/group-stage-matches`);
-            console.log("Fetched group matches:", response.data.matches);
+            const res = await axios.get(`http://localhost:8000/api/tournaments/${tournamentData._id}/group-stage-matches`);
+            console.log("Fetched group matches:", res.data.matches);
+            console.log("✅ group-stage-matches raw response:", res.data);
+            console.log("✅ is res.data.matches[0] an array?", Array.isArray(res.data.matches?.[0]));
             
-            setMatchData([...response.data.matches]);
+            setTournamentData(prev => ({
+            ...prev,
+            matches: res.data.matches
+            }));
+
+
         } catch (err) {
             console.error("Error fetching group matches:", err);
-            setMatchData([]);
+            setTournamentData(prev => ({ ...prev, matches: [] }));
         }
     }
     fetchGroupMatches();
-}, [tournamentData._id, tournamentData.updatedAt]);
+}, [tournamentData?._id, tournamentData?.updatedAt]);
 
 useEffect(() => {
-    console.log("🎯 matchData updated:", matchData);
-}, [matchData]); // ✅ this just logs it, doesn't fetch again
+    console.log("🎯 matchData updated:", matches);
+}, [matches]); // ✅ this just logs it, doesn't fetch again
 
     console.log("🧠 GroupMatches render");
-    console.log("📊 matchData:", matchData);
-    console.log("📅 tournamentData.updatedAt:", tournamentData.updatedAt);
+    console.log("📊 matchData:", matches);
+    console.log("tournamentData shape upon loading", tournamentData);
 
     return (
         <div>
             <div>
                 <h2>Group Matches</h2>
                 {/* check if matchData exists and has matches */}
-                {Array.isArray(matchData) && matchData.length > 0 ? (
+                {Array.isArray(matches) && matches.length > 0 ? (
                     // loop through each round of matches
-                    matchData.map((round, roundIndex) => {
+                    matches.map((round, roundIndex) => {
                         // 1. organize matches by group name
                         const groupedMatches = round.reduce((matchesByGroup, match) => {
                             const group = match.group || 'Unknown';
@@ -266,6 +294,13 @@ useEffect(() => {
                                         //Define participant details
                                         const participant1 = participantLookup[match.participants[0]?.participantId] || {};
                                         const participant2 = participantLookup[match.participants[1]?.participantId] || {};
+
+                                        //score input keys
+                                        const key1 = `${roundIndex}-${fullMatchIndex}-1`;
+                                        const key2 = `${roundIndex}-${fullMatchIndex}-2`;
+
+                                        const score1 = scoreInputs[key1] ?? (match.participants[0]?.score ?? 0);
+                                        const score2 = scoreInputs[key2] ?? (match.participants[1]?.score ?? 0);
                                         console.log(`Match ${match.matchNumber} status:`, match.status);
 
                                         return (
@@ -274,21 +309,19 @@ useEffect(() => {
                                                 <div 
                                                 className={`card p-3 align-items-center`}
                                                 style={{ minHeight: '200px', opacity: match.status === 'completed' ? 0.5:1}}
-                                                >
+                                                >   
+                                                    {/* Score Inputs */}
                                                     <div className='card-body d-flex'>
-
                                                         {/* Participant 1 */}
                                                         <label className='me-2'>
                                                             {participant1.participantName || "Unknown"} ({participant1.teamName || "Unknown"})
                                                         </label>
-
-                                                        {/* Score Inputs */}
                                                         <input
                                                             type='number'
                                                             min='0'
                                                             max='100'
                                                             className='form-control me-2'
-                                                            value={match.participants[0]?.score || 0}
+                                                            value={score1}
                                                             onChange={(e) => onChangeHandler(e, roundIndex, fullMatchIndex, 1)}
                                                             disabled={isSubmitted || groupStageConcluded}
                                                             />
@@ -301,7 +334,7 @@ useEffect(() => {
                                                             min='0'
                                                             max='100' 
                                                             className='form-control me-2'
-                                                            value={match.participants[1]?.score || 0}
+                                                            value={score2}
                                                             onChange={(e) => onChangeHandler(e, roundIndex, fullMatchIndex, 2)}
                                                             disabled={isSubmitted || groupStageConcluded}
                                                             />
