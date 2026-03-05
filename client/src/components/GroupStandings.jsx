@@ -1,4 +1,5 @@
 import { useOutletContext } from 'react-router-dom'
+import { getSortedGroupStandings } from '../helpers/tournamentUtills';
 
 const GroupStandings = () => {
   const { tournamentData } = useOutletContext();
@@ -17,6 +18,10 @@ const GroupStandings = () => {
     return acc;
   }, {})
 
+  const flatMatches = Array.isArray(tournamentData?.matches) 
+    ? tournamentData.matches.flat()
+    : [];
+
   console.log("Participants grouped by groupName:", participantsByGroup);
 
 
@@ -28,6 +33,18 @@ const GroupStandings = () => {
           console.error(`Error: participant at index ${groupIndex} is not an array`, participants);
           return null; // Skip rendering this group
         }
+
+        const groupIdSet = new Set(participants.map(p => p._id.toString()));
+
+        const matchesForGroup = flatMatches
+          .filter(m =>
+            Array.isArray(m.participants) &&
+            m.participants.length >= 2 &&
+            m.participants.every(mp => groupIdSet.has(mp.participantId.toString()))
+          )
+          .filter(m => m.status === "completed");
+
+        const sortedParticipants = getSortedGroupStandings(participants, matchesForGroup);
 
         return (
           <div key={groupName} className='mb-3 container'>
@@ -48,7 +65,7 @@ const GroupStandings = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {participants.map((participant, index) => (
+                  {sortedParticipants.map((participant, index) => (
                     <tr key={participant._id || participant.participantName}>
 
                       <td className='col-2'>
