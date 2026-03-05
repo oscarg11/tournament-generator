@@ -8,7 +8,6 @@ const MatchSchema = new mongoose.Schema({
         }
     ],
     matchNumber : {type: Number, required: true},
-    group: { type: String},
     round: {
         type: Number,
         required: function (){
