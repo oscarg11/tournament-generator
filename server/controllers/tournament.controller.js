@@ -62,7 +62,7 @@ module.exports.addParticipantToTournament = async (req, res) => {
         //add participant to tournament
         tournament.participants.push(newParticipant._id);
         await tournament.save();
-        console.log(`✅ Tournament "${tournament.tournamentName}" updated with participant "${newParticipant.participantName}"`);
+        console.log(`✅ Added Participant"${newParticipant.participantName}" to Tournament "${tournament.tournamentName}"`);
 
         //Re-fetch the tournament with updated Paricipants
         const updatedTournament = await Tournament.findById(tournament._id)
@@ -74,8 +74,13 @@ module.exports.addParticipantToTournament = async (req, res) => {
         res.status(500).json({ message: "Something went wrong in adding participant to tournament", error: error });
     }
 }
-
-// Delete a Participant from Tournament
+/**
+ * Delete Participant from Tournament
+ * Participants are stored as ObjectId references in the Tournament's participants array.
+ * 
+ * This function deletes a participant by using its ObjectId from the tournament's participants array.
+ * 
+ */
 module.exports.deleteParticipantFromTournament = async (req, res) => {
     try {
         const tournamentId = req.params.tournamentId;
@@ -179,7 +184,16 @@ module.exports.startTournament = async (req, res) => {
                     { _id: { $in: group.participants } },
                     { $set: { groupName: group.groupName } }
                 );
-            }
+            } 
+            const sanity = await Participant.find({
+            _id: { $in: shuffledParticipants }
+            }).select('participantName groupName');
+
+            console.log('🧪 Sanity check groupNames:', sanity);
+
+            const test = await Participant.findOne();
+console.log('Any participant groupName:', test.groupName);
+
             console.log(`✅ Group assignments saved to participant records`);
             console.log("Groups created:", groups);
             //GENERATE GROUP STAGE MATCHES
@@ -188,23 +202,26 @@ module.exports.startTournament = async (req, res) => {
             console.log(`✅ Generated ${matches.length} group stage matches`);
         }
 
-        // Save matches to the database
-        if (matches.length > 0) {
-            console.log(`💾 Inserting ${matches.length} matches into database...`);
-            const matchInstances = await Match.insertMany(matches);
-            const matchIds = matchInstances.map((match) => match._id);
-            
+            // Save matches to the database
+            if (matches.length > 0) {
+                console.log(`💾 Inserting ${matches.length} matches into database...`);
+                const matchInstances = await Match.insertMany(matches);
+                const matchIds = matchInstances.map((match) => match._id);
+                
             // console.log("✅ Inserted Match IDs:", matchIds);
             tournament.matches = matchIds;
             //update tournament status to started
             tournament.status = 'started';
             //save to db
             await tournament.save();
-            console.log(`✅ Tournament "${tournament.tournamentName}" updated with matches.`);
-        }
+
+            //re-fetch the tournament with updated participatns
+            const updatedTournament = await Tournament.findById(tournament._id)
+                .populate('participants');
         
-        console.log(`🎉 Tournament "${tournament.tournamentName}" created successfully!`);
-        res.json({ tournament: tournament });
+        res.json({ tournament: updatedTournament });
+            console.log(`✅ Tournament "${tournament.tournamentName}" updated with groupsNames, matches, and status 'started'`);
+        }
 
     } catch (error) {
         console.error('❌ [startTournament] Error:', error.message);
@@ -245,22 +262,6 @@ module.exports.findOneTournament = async (req,res) => {
         if(!tournament){
             console.log(`❌ [FindOneTournament] Tournament not found: ${tournament}`);
             return res.status(404).json({ message: "Tournament not found!" });
-        }
-        //populate groups with participants
-        if(tournament.groups && tournament.groups.length > 0){
-            for(let group of tournament.groups){
-                const idOrder = group.participants.map(p => p.toString());
-
-                //find all participants in the group
-                const populated = await Participant.find({
-                    _id: { $in: idOrder}
-                })
-
-                //reorder participants to match the original order
-                group.participants = idOrder.map(id => 
-                    populated.find(p => p._id.toString() === id)
-                );
-            }
         }
         console.log(`📄 [FindOneTournament] Retrieved: "${tournament.tournamentName}"`);
         res.json( {oneTournament: tournament} );
