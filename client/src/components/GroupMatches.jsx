@@ -13,7 +13,6 @@ const matches = Array.isArray(tournamentData?.matches?.[0])
     : [];
 
 
-
     //score buffer state 
     const [scoreInputs, setScoreInputs] = useState({});
 
@@ -257,13 +256,19 @@ useEffect(() => {
                     matches.map((round, roundIndex) => {
                         // 1. organize matches by group name
                         const groupedMatches = round.reduce((matchesByGroup, match) => {
-                            const group = match.group || 'Unknown';
-                            console.log("🔍 Match group:", match.group);
+                            const participantId = match.participants?.[0]?.participantId;
+                            const group = participantLookup?.[participantId]?.groupName || 'Unknown';
 
-                            if (!matchesByGroup[group]) matchesByGroup[group] = [];
+                            console.log("🔍 Derived group:", group);
+
+                            if (!matchesByGroup[group]) {
+                                matchesByGroup[group] = [];
+                            }
+
                             matchesByGroup[group].push(match);
                             return matchesByGroup;
                         }, {});
+                        console.log(groupedMatches, "Matches by group");
 
                             return (
                                 <div key={roundIndex} className='mb-5'>
