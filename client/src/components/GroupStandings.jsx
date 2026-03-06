@@ -1,4 +1,5 @@
 import { useOutletContext } from 'react-router-dom'
+import { useMemo } from 'react';
 import { getSortedGroupStandings } from '../helpers/tournamentUtills';
 
 const GroupStandings = () => {
@@ -7,16 +8,20 @@ const GroupStandings = () => {
   //group participants by group name
   console.log("Participants in GroupStandings:", tournamentData.participants);
   
-  const participants = tournamentData.participants || [];
-
-  const participantsByGroup = participants.reduce((acc, participant) => {
-    const groupName = participant.groupName || 'Ungrouped';
-    if(!acc[groupName]){
-      acc[groupName] = [];
-    }
-    acc[groupName].push(participant);
-    return acc;
-  }, {})
+  const participants = useMemo (() => {
+    return tournamentData.participants || [];
+  }, [tournamentData.participants]);
+  
+  const participantsByGroup = useMemo(() => {
+    return participants.reduce((acc, participant) => {
+      const groupName = participant.groupName || 'Ungrouped';
+      if(!acc[groupName]){
+        acc[groupName] = [];
+      }
+      acc[groupName].push(participant);
+      return acc;
+    }, {});
+  }, [participants]);
 
   const flatMatches = Array.isArray(tournamentData?.matches) 
     ? tournamentData.matches.flat()
