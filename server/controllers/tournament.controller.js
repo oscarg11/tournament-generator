@@ -317,70 +317,83 @@ module.exports.concludeGroupStage = async (req, res) => {
             }
             console.log("✅ Tournament found:", tournament._id);
 
-            //Deep population of participants within groups
-            await tournament.populate({
-                path: 'groups.participants',
-                select: 'participantName teamName points goalDifference goalsScored _id'
-            });
 
-            console.log(`✅ Found tournament: "${tournament.tournamentName}" with ${tournament.groups.length} groups`);
-            
             //2. final recalculation of all participants stats
             await recalculateAllParticipantStats(tournament);
             await tournament.save();
             console.log(`📊 Final group stage stats recalculated`);
 
-            //3. Initialize finalist array
+            //3. Group participants by group name
+            const participantsByGroup = tournament.participants.reduce((acc, participant) => {
+                const groupName = participant.groupName || 'Ungrouped';
+                if (!acc[groupName]){
+                    acc[groupName] = [];
+                }
+                acc[groupName].push(participant);
+                return acc;
+            }, {});
+
+            console.log(`✅ Derived ${Object.keys(participantsByGroup).length} groups from participants`);
+
+            //4. Initialize Finalist Array
             const finalists = [];
-            const allGroups = tournament.groups;
+
 
             // 4. loop through each group to sort and select finalists
-            for (const group of allGroups) {
-                // 🔍 Get all matches for one group
-                const matchesForGroup = tournament.matches.filter(
-                    m => m.group === group.groupName
+            for (const [groupName, groupParticipants] of Object.entries(participantsByGroup)) {
+                const groupParticipantIds = new Set(
+                    groupParticipants.map((p) => p._id.toString())
                 );
 
-                // 🔄 remap matches to plain objects and flatten participants array
-                const remappedMatches = matchesForGroup.map(match => match.toObject());
+                //get all group stage matches for this group
+                const matchesForGroup = tournament.matches.filter((match) => {
+                    if (!Array.isArray(match.participants) || match.participants.length < 2) {
+                        return false;
+                    }
 
+                    return match.participants.every((participantEntry) => 
+                        groupParticipantIds.has(participantEntry.participantId.toString())
+                    );
+                });
+
+                //ensure only completed matches are used
+                const completedMatchesForGroup = matchesForGroup.filter(
+                    (match) => match.status === "completed"
+                );
             
             // 🏆 Get the sorted standings for the group
             const standings = getSortedGroupStandings(
-                group.participants,
-                remappedMatches
+                groupParticipants,
+                completedMatchesForGroup
             );
 
-            //re-assign updated standings to group participants
-            group.participants = standings.map(p => p._id);
-            tournament.markModified('groups');
-            // ✅ Save tournament with updated group standings
-            await tournament.save();
 
             // 🔍 **Print with names**
-            console.log("🏆 Sorted Standings for Group:", standings.map(p => {
-                const participant = tournament.participants.find(
-                    part => part._id.toString() === p._id.toString()
-                );
-                return {
-                    id: p._id,
-                    name: participant ? participant.participantName : "Name not found",
-                    team: participant ? participant.teamName : "Team not found",
-                    points: participant ? participant.points : "No Points",
-                    goalDifference: participant ? participant.goalDifference : "No GD",
-                    goalsScored: participant ? participant.goalsScored : "No GS"
-                };
-            }));
+            console.log(
+            `🏆 Sorted Standings for Group ${groupName}:`,
+            standings.map((p) => ({
+            id: p._id,
+            name: p.participantName,
+            team: p.teamName,
+            points: p.points,
+            goalDifference: p.goalDifference,
+            goalsScored: p.goalsScored,
+            }))
+        );
+            
+            // Validate at least 2 participants exist
+            if (standings.length < 2) {
+                console.log(`❌ [ConcludeGroupStage] Group ${groupName} has fewer than 2 participants`);
+                return res.status(400).json({
+                message: `Group ${groupName} does not have enough participants to conclude standings`,
+                });
+            }
 
             // 🏆 Extract the top two participants from the sorted standings
-            const groupWinner = tournament.participants.find(
-                p => p._id.toString() === standings[0]._id.toString()
-            );
-            const groupRunnerUp = tournament.participants.find(
-                p => p._id.toString() === standings[1]._id.toString()
-            );
+            const groupWinner = standings[0];
+            const groupRunnerUp = standings[1];
 
-            console.log(`🏆 Group ${group.groupName} Results:`);
+            console.log(`🏆 Group ${groupName} Results:`);
             console.log(`   Winner: ${groupWinner?.participantName} (${groupWinner?.teamName})`);
             console.log(`   Runner-up: ${groupRunnerUp?.participantName} (${groupRunnerUp?.teamName})`);
             
@@ -390,26 +403,28 @@ module.exports.concludeGroupStage = async (req, res) => {
                     participant: groupWinner._id,
                     participantName: groupWinner.participantName,
                     teamName: groupWinner.teamName,
-                    group: group.groupName,
+                    group: groupName,
                     rank:1,
                 },
                 {
                     participant: groupRunnerUp._id,
                     participantName: groupRunnerUp.participantName,
                     teamName: groupRunnerUp.teamName,
-                    group: group.groupName,
+                    group: groupName,
                     rank:2,
                 }
             );
         }
 
-        // 5. Save finalists to tournament
+        // 6. Save finalists to tournament
         tournament.finalists = finalists;
         // disable group stage matches
         tournament.groupStageConcluded = true;
 
         await tournament.save();
+
         console.log(`🎯 Group stage concluded with ${finalists.length} finalists advancing to knockout stage`);
+        
         return res.json({ finalists: tournament.finalists });
 
     } catch (error) {
