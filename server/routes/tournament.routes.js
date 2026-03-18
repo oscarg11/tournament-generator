@@ -20,6 +20,9 @@ module.exports = app => {
     //Conclude group stage
     app.patch('/api/tournaments/:id/conclude-group-stage', TournamentController.concludeGroupStage);
 
+    // Get group standings
+    app.get('/api/tournaments/:id/group-standings', TournamentController.getGroupStageStandings);
+
     // Create knockout stage
     app.post('/api/tournaments/:id/create-knockout-stage', TournamentController.createKnockoutMatches);
 };
