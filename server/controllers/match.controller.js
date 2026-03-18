@@ -345,6 +345,7 @@ const tournamentObj = fresh.toObject();
 tournamentObj.matches = freshRoundsArray;
 
 console.log(`✅ [resetGroupStageMatch] Match reset + stats recalculated`);
+await tournament.save(); // Ensure tournament is saved with any changes
 
 // ✅ Return updated tournament so frontend updates immediately
 return res.json({ tournament: tournamentObj });
