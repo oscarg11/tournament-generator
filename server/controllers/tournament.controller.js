@@ -300,6 +300,59 @@ module.exports.deleteTournament = (req, res) => {
         });
 }
 
+//Get Group Stage Standings 
+module.exports.getGroupStageStandings = async (req, res) => {
+    const tournamentId = req.params.id;
+    console.log(`📊 [GetGroupStageStandings] Fetching standings for tournament: ${tournamentId}`);
+
+    try {
+        const tournament = await Tournament.findById(tournamentId)
+            .populate('participants')
+            .populate({
+                path: 'matches',
+                match: { stage: 'group' }
+            });
+        
+        if(!tournament) {
+            return res.status(404).json({message: "Tournament not found!"});
+        }
+
+        //Group participants by group name
+        const participantsByGroup = tournament.participants.reduce((acc, participant) => {
+            const groupName = participant.groupName || 'Ungrouped';
+            if(!acc[groupName]) acc[groupName] = [];
+            acc[groupName].push(participant);
+            return acc;
+        }, {});
+
+        //For each group, sort the participants using backend helper sorting functions
+        const standings = {};
+        for(const [groupName, participants] of Object.entries(participantsByGroup)){
+
+            //get participant ids
+            const groupParticipantIds = new Set(
+                participants.map(p => p._id.toString())
+            );
+
+            //get matches for this group
+            const matchesForGroup = tournament.matches.filter(match =>
+                Array.isArray(match.participants) &&
+                match.participants.length >= 2 &&
+                match.participants.every(mp => 
+                    groupParticipantIds.has(mp.participantId.toString())
+                )
+            );
+
+            //call sorting function
+            standings[groupName] = getSortedGroupStandings(participants, matchesForGroup);
+        }
+        res.json({ standings: standings });
+    }catch (error) {
+        console.error(`❌ [GetGroupStageStandings] Error:`, error.message);
+        res.json({ message: "Something went wrong", error: error });
+    }
+}
+
 //Conclude Group Stage
 module.exports.concludeGroupStage = async (req, res) => {
     const tournamentId = req.params.id;
