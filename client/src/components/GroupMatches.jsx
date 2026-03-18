@@ -236,7 +236,7 @@ useEffect(() => {
         }
     }
     fetchGroupMatches();
-}, [tournamentData?._id, tournamentData?.updatedAt]);
+}, [tournamentData?._id]); // ✅ only re-run if tournament ID changes, not on every render
 
 useEffect(() => {
     console.log("🎯 matchData updated:", matches);
