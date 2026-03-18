@@ -1,56 +1,36 @@
 import { useOutletContext } from 'react-router-dom'
-import { useMemo } from 'react';
-import { getSortedGroupStandings } from '../helpers/tournamentUtills';
+import React, {useState, useEffect} from 'react'
+import axios from 'axios'
 
 const GroupStandings = () => {
   const { tournamentData } = useOutletContext();
-  
-  //group participants by group name
-  console.log("Participants in GroupStandings:", tournamentData.participants);
-  
-  const participants = useMemo (() => {
-    return tournamentData.participants || [];
-  }, [tournamentData.participants]);
-  
-  const participantsByGroup = useMemo(() => {
-    return participants.reduce((acc, participant) => {
-      const groupName = participant.groupName || 'Ungrouped';
-      if(!acc[groupName]){
-        acc[groupName] = [];
+  const [standings, setStandings] = useState({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStandings = async () => {
+      if (!tournamentData?._id) return;
+      try {
+        setLoading(true);
+        const res = await axios.get(
+          `http://localhost:8000/api/tournaments/${tournamentData._id}/group-standings`
+        );
+        setStandings(res.data.standings);
+      } catch (err) {
+        console.error("Error fetching standings:", err);
+      } finally {
+        setLoading(false);
       }
-      acc[groupName].push(participant);
-      return acc;
-    }, {});
-  }, [participants]);
+    };
 
-  const flatMatches = Array.isArray(tournamentData?.matches) 
-    ? tournamentData.matches.flat()
-    : [];
+    fetchStandings();
+  }, [tournamentData._id, tournamentData.updatedAt]);
 
-  console.log("Participants grouped by groupName:", participantsByGroup);
-
+  if(loading) return <p>Loading Standings...</p>;
 
   return (
     <div>
-      {Object.entries(participantsByGroup).map(
-        ([groupName, participants], groupIndex) => {
-        if (!Array.isArray(participants)) {
-          console.error(`Error: participant at index ${groupIndex} is not an array`, participants);
-          return null; // Skip rendering this group
-        }
-
-        const groupIdSet = new Set(participants.map(p => p._id.toString()));
-
-        const matchesForGroup = flatMatches
-          .filter(m =>
-            Array.isArray(m.participants) &&
-            m.participants.length >= 2 &&
-            m.participants.every(mp => groupIdSet.has(mp.participantId.toString()))
-          )
-          .filter(m => m.status === "completed");
-
-        const sortedParticipants = getSortedGroupStandings(participants, matchesForGroup);
-
+      {Object.entries(standings).map(([groupName, participants], groupIndex) => {
         return (
           <div key={groupName} className='mb-3 container'>
             <div className='row'>
@@ -70,7 +50,7 @@ const GroupStandings = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedParticipants.map((participant, index) => (
+                  {participants.map((participant, index) => (
                     <tr key={participant._id || participant.participantName}>
 
                       <td className='col-2'>
