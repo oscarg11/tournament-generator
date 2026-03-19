@@ -3,18 +3,24 @@ import React, {useState, useEffect} from 'react'
 import axios from 'axios'
 
 const GroupStandings = () => {
-  const { tournamentData } = useOutletContext();
+  const { tournamentData, refetchCounter } = useOutletContext();
   const [standings, setStandings] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+
+    console.log("🔵 GroupStandings useEffect fired");
+    console.log("🔵 tournamentData._id:", tournamentData._id);
+    console.log("🔵 tournamentData.updatedAt:", tournamentData.updatedAt);
     const fetchStandings = async () => {
       if (!tournamentData?._id) return;
       try {
         setLoading(true);
+        console.log("🔵 Fetching standings...");
         const res = await axios.get(
           `http://localhost:8000/api/tournaments/${tournamentData._id}/group-standings`
         );
+        console.log("🔵 Standings response:", res.data.standings);
         setStandings(res.data.standings);
       } catch (err) {
         console.error("Error fetching standings:", err);
@@ -24,7 +30,7 @@ const GroupStandings = () => {
     };
 
     fetchStandings();
-  }, [tournamentData._id, tournamentData.updatedAt]);
+  }, [tournamentData._id, refetchCounter]);
 
   if(loading) return <p>Loading Standings...</p>;
 
