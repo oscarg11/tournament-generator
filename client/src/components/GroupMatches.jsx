@@ -5,43 +5,63 @@ import { participantLookupFunction } from '../helpers/tournamentUtills';
 
 const GroupMatches = () => {
 
-const { tournamentData, setTournamentData } = useOutletContext();
+const { tournamentData, setTournamentData, refetchCounter, setRefetchCounter } = useOutletContext();
 console.log("B: got outlet context", tournamentData);
 
-const matches = Array.isArray(tournamentData?.matches?.[0])
-    ? tournamentData.matches
-    : [];
-
+    //local state for matches, initialized from tournamentData
+    const [matches, setMatches] = useState([]);
 
     //score buffer state 
     const [scoreInputs, setScoreInputs] = useState({});
-
+    
     //loading indicators
     const [submittingMatch, setSubmittingMatch] = useState(null);//holds {roundIndex, matchIndex} of the match being submitted
     const [submittedMatches, setSubmittedMatches] = useState(new Set()) // track submitted matches
     const [resettingMatch, setResettingMatch] = useState(null); //holds {roundIndex, matchIndex} of the match being reset
     //conclude grop stage spinner state
     const [concludingGroupStage, setConcludingGroupStage] = useState(false);
-
+    
     const navigate = useNavigate();
 
-//Participant Lookup Function to get Participant name and team name
-    const participantLookup = useMemo(() => {
-        return participantLookupFunction(tournamentData.participants);
-    }, [tournamentData.participants]);
+    //Participant Lookup Function to get Participant name and team name
+        const participantLookup = useMemo(() => {
+            return participantLookupFunction(tournamentData.participants);
+        }, [tournamentData.participants]);
+    
+        //conclude group stage
+        const groupStageConcluded = tournamentData.groupStageConcluded;
+    
+        console.log("📥 tournamentData.updatedAt in GroupMatches:", tournamentData?.updatedAt);
+    
+        console.log("matches shape check:", {
+        isArray: Array.isArray(matches),
+        length: matches?.length,
+        firstRoundIsArray: Array.isArray(matches?.[0]),
+        firstRoundType: typeof matches?.[0],
+        firstRoundValue: matches?.[0],
+    });
 
-    //conclude group stage
-    const groupStageConcluded = tournamentData.groupStageConcluded;
-
-    console.log("📥 tournamentData.updatedAt in GroupMatches:", tournamentData?.updatedAt);
-
-    console.log("matches shape check:", {
-    isArray: Array.isArray(matches),
-    length: matches?.length,
-    firstRoundIsArray: Array.isArray(matches?.[0]),
-    firstRoundType: typeof matches?.[0],
-    firstRoundValue: matches?.[0],
-});
+    useEffect(() => {
+        const fetchGroupMatches = async () => {
+            try {
+                if (!tournamentData?._id) return;
+                console.log("🎯 useEffect triggered by updatedAt in GroupMatches:", tournamentData.updatedAt);
+                
+                console.log("Fetching group matches for tournament:", tournamentData._id);
+                
+                const res = await axios.get(`http://localhost:8000/api/tournaments/${tournamentData._id}/group-stage-matches`);
+                console.log("Fetched group matches:", res.data.matches);
+                console.log("✅ group-stage-matches raw response:", res.data);
+                console.log("✅ is res.data.matches[0] an array?", Array.isArray(res.data.matches?.[0]));
+                
+                setMatches(res.data.matches); //set local state only
+            } catch (err) {
+                console.error("Error fetching group matches:", err);
+                setMatches([]); // clear local state on error
+            }
+        }
+        fetchGroupMatches();
+    }, [tournamentData?._id]); // ✅ only re-run if tournament ID changes, not on every render
 
     const allMatchesPending =
     Array.isArray(matches) &&
@@ -51,7 +71,7 @@ const matches = Array.isArray(tournamentData?.matches?.[0])
         round.every(match => match.status !== 'pending')
 );
 
-    
+
 // RESET single match
 const resetMatch = async (roundIndex, matchIndex) => {
 // ✅ correct loading indicator for reset
@@ -63,10 +83,23 @@ const res = await axios.put(
     `http://localhost:8000/api/tournaments/${tournamentData._id}/reset-group-match/${roundIndex}/${matchIndex}`
 );
 
-console.log("Match reset successfully ✅", res.data);
+console.log("🔴 Reset response updatedAt:", res.data.tournament.updatedAt);
+console.log("🔴 Current tournamentData.updatedAt:", tournamentData.updatedAt);
+console.log("🔴 Are they the same?", res.data.tournament.updatedAt === tournamentData.updatedAt);
+
+setMatches(res.data.tournament.matches); // Update local matches state with the reset match data
 
 // ✅ backend is source of truth now
-setTournamentData(res.data.tournament);
+setTournamentData(prev => {
+    console.log("🔴 prev.updatedAt:", prev.updatedAt);
+    console.log("🔴 new updatedAt:", res.data.tournament.updatedAt);
+    return {
+        ...prev,
+        updatedAt: res.data.tournament.updatedAt,
+        participants: res.data.tournament.participants
+    };
+});
+setRefetchCounter(prev => prev + 1); // ← signal to GroupStandings to re-fetch
 
 // ✅ clear any buffered inputs for this match so UI doesn't show stale numbers
 const key1 = `${roundIndex}-${matchIndex}-1`;
@@ -146,8 +179,14 @@ const handleScoreSubmit = async (e, roundIndex, matchIndex) =>{
         console.log("PUT matches type:", typeof res.data?.tournament?.matches);
         console.log("PUT matches sample:", res.data?.tournament?.matches?.[0]);
 
-
-        setTournamentData(res.data.tournament);
+        setMatches(res.data.tournament.matches); // Update local matches state with the response from backend, which has the updated match data
+        // Notify shared context that updatedAt changed so GroupStandings re-fetches
+        setTournamentData(prev => ({
+            ...prev,
+            updatedAt: res.data.tournament.updatedAt,
+            participants: res.data.tournament.participants
+        }));
+        setRefetchCounter(prev => prev + 1); // ← signal to GroupStandings to re-fetch
         console.log("Updated Tournament Data After Match Update:", res.data.tournament);
 
         //clear input buffer for this match
@@ -211,32 +250,6 @@ const handleKnockoutStageCreation = async () => {
     };
 }
 
-useEffect(() => {
-    const fetchGroupMatches = async () => {
-        try {
-            if (!tournamentData?._id) return;
-            console.log("🎯 useEffect triggered by updatedAt in GroupMatches:", tournamentData.updatedAt);
-            
-            console.log("Fetching group matches for tournament:", tournamentData._id);
-            
-            const res = await axios.get(`http://localhost:8000/api/tournaments/${tournamentData._id}/group-stage-matches`);
-            console.log("Fetched group matches:", res.data.matches);
-            console.log("✅ group-stage-matches raw response:", res.data);
-            console.log("✅ is res.data.matches[0] an array?", Array.isArray(res.data.matches?.[0]));
-            
-            setTournamentData(prev => ({
-            ...prev,
-            matches: res.data.matches
-            }));
-
-
-        } catch (err) {
-            console.error("Error fetching group matches:", err);
-            setTournamentData(prev => ({ ...prev, matches: [] }));
-        }
-    }
-    fetchGroupMatches();
-}, [tournamentData?._id]); // ✅ only re-run if tournament ID changes, not on every render
 
 useEffect(() => {
     console.log("🎯 matchData updated:", matches);
