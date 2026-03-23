@@ -308,14 +308,14 @@ module.exports.getGroupStageStandings = async (req, res) => {
     try {
         const tournament = await Tournament.findById(tournamentId)
             .populate('participants')
-            .populate({
-                path: 'matches',
-                match: { stage: 'group' }
-            });
-        
-        if(!tournament) {
-            return res.status(404).json({message: "Tournament not found!"});
-        }
+            .populate('matches');;
+            
+            if(!tournament) {
+                return res.status(404).json({message: "Tournament not found!"});
+            }
+            console.log("🟡 tournament.matches count:", tournament.matches.length);
+            console.log("🟡 first match stage:", tournament.matches[0]?.stage);
+            console.log("🟡 participants sample:", tournament.participants[0]);
 
         //Group participants by group name
         const participantsByGroup = tournament.participants.reduce((acc, participant) => {
@@ -336,6 +336,7 @@ module.exports.getGroupStageStandings = async (req, res) => {
 
             //get matches for this group
             const matchesForGroup = tournament.matches.filter(match =>
+                match.stage === 'group' &&
                 Array.isArray(match.participants) &&
                 match.participants.length >= 2 &&
                 match.participants.every(mp => 
@@ -522,13 +523,30 @@ module.exports.createKnockoutMatches = async (req, res) => {
             console.log("✅ Tournament found:", tournament._id);
 
             const finalists = tournament.finalists;
-            const groups = tournament.groups;
+
+            //Group Participants By Group Name
+            const participantsByGroup = tournament.participants.reduce((acc, participant) => {
+                const groupName = participant.groupName || 'Ungrouped';
+                if (!acc[groupName]){
+                    acc[groupName] = [];
+                }
+                acc[groupName].push(participant);
+                return acc;
+            }, {});
+
+            //all groups
+            const groupNames = Object.keys(participantsByGroup);
+            const numberOfGroups = groupNames.length;
+
+            console.log(`📊 Found ${numberOfGroups} groups:`, groupNames);
+            console.log("📊 Participants by group:", participantsByGroup);
+
             const allKnockoutMatches = []
             let matchNumber = tournament.matches.length + 1; // Start match numbering from the last match number
             console.log("FINALIST Array called from createKnockoutMatches Controller:", finalists)
 
             // IF THERE IS ONLY ONE GROUP THEN A SINGLE FINAL MATCH WILL BE CREATED
-            if( groups.length === 1){
+            if( numberOfGroups === 1){
                 const [firstPlace, secondPlace] = finalists;
                 console.log(`🏆 Creating Grand Final:`);
                 console.log(`   ${firstPlace.participant.participantName} vs ${secondPlace.participant.participantName}`);
@@ -587,8 +605,8 @@ module.exports.createKnockoutMatches = async (req, res) => {
                 const totalRounds = Math.ceil(Math.log2(numOfFinalists));
                 const knockOutRounds = Array.from({ length: totalRounds }, () => []);
 
-                // access the groups array from the finalistsByGroup object
-                const groupKeys = Object.keys(finalistsByGroup);
+                // The order of groupKeys determines the pairing of winners and runners-up.
+                const groupKeys = groupNames; 
 
                 // CREATE FIRST ROUND OF MATCHES 
                 for( let i = 0; i < groupKeys.length; i+= 2){
