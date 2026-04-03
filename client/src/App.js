@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route} from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate} from 'react-router-dom'
 import './App.css';
 
 import HomePage from './pages/HomePage';
@@ -22,8 +22,13 @@ function App() {
           <Route path='/' element={ <HomePage/> } />
           <Route path='/create-tournament' element={ <CreateTournament/> } />
           <Route path='/dashboard/:tournamentId' element={ <Dashboard/> }>
+          {/* ✅ Redirect dashboard root to overview */}
+            <Route index element={ <Navigate to="overview" replace /> } />
+
             <Route path='overview' element={ <OverView/> } />
             <Route path='group-stage' element={ <GroupStage/>}>
+            {/* ✅ Redirect group-stage root to standings */}
+              <Route index element={ <Navigate to='standings' replace />} />
               <Route path='matches' element={ <GroupMatches/>} />
               <Route path='standings' element={ <GroupStandings/>} />
             </Route>
