@@ -10,7 +10,7 @@ const GroupStage = () => {
 
   return (
     // Navbar to toggle between group standings and group matches
-    <div className="container">
+    <>
       <nav className="navbar navbar-expand navbar-dark bg-secondary mb-3">
           <div className="collapse navbar-collapse justify-content-start" id="navbarNav">
             <ul className="navbar-nav">
@@ -27,11 +27,8 @@ const GroupStage = () => {
             </ul>
           </div>
         </nav>
-          {/* Display either standings or matches*/}
-            <div className="flex flex-row gap-3">
-                <Outlet context={context}/>
-            </div>
-    </div>
+          <Outlet context={context}/>
+  </>
 )
 }
 
