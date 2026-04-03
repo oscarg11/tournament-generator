@@ -36,7 +36,9 @@ const GroupStandings = () => {
 
   return (
     <div>
-      {Object.entries(standings).map(([groupName, participants], groupIndex) => {
+      {Object.entries(standings)
+        .sort(([groupA], [groupB]) => groupA.localeCompare(groupB)) // sort groups alphabetically
+        .map(([groupName, participants], groupIndex) => {
         return (
           <div key={groupName} className='mb-3 container'>
             <div className='row'>
